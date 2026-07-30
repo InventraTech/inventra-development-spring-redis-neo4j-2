@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.inventra.api.application.service.StockBatch.model.request.RegisterStockEntryRequest;
 import com.inventra.api.application.service.StockBatch.model.response.LowStockAlertResponse;
@@ -81,6 +82,7 @@ public class StockBatchService implements StockBatchUseCase {
     }
 
     @Override
+    @Transactional
     public void consumeForProduct(Integer kitchenId, Long productId, BigDecimal quantity) {
         List<StockBatch> batches = repository
             .findByKitchenIdAndProductIdAndStatusOrderByExpirationDateAscEntryDateAsc(

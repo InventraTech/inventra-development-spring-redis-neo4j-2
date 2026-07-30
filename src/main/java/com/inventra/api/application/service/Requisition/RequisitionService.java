@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.inventra.api.application.service.Requisition.model.request.AddRequisitionItemRequest;
 import com.inventra.api.application.service.Requisition.model.request.CreateRequisitionRequest;
@@ -109,6 +110,7 @@ public class RequisitionService implements RequisitionUseCase {
     }
 
     @Override
+    @Transactional
     public Requisition approve(Integer requisitionId, UUID approverId) {
         Requisition requisition = findEditableRequisition(requisitionId);
         User approver = userRepository.findById(approverId)
