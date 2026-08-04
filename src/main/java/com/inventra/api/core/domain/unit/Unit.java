@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "tb_unidade_medida")
+@Table(name = "tb_measurement_unit")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,14 +16,14 @@ public class Unit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_unidade")
+    @Column(name = "id_unit")
     @EqualsAndHashCode.Include
     private Integer id;
 
-    @Column(name = "sigla", nullable = false, unique = true, length = 10)
+    @Column(name = "symbol", nullable = false, unique = true, length = 10)
     @EqualsAndHashCode.Include
     private String symbol;
 
-    @Column(name = "descricao", nullable = false, length = 60)
+    @Column(name = "description", nullable = false, length = 60)
     private String description;
 }

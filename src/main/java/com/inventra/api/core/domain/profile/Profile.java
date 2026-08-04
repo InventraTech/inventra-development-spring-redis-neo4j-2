@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "tb_perfil")
+@Table(name = "tb_profile")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,14 +16,14 @@ public class Profile {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_perfil")
+    @Column(name = "id_profile")
     @EqualsAndHashCode.Include
     private Integer id;
 
-    @Column(name = "tipo_acesso", nullable = false, unique = true, length = 50)
+    @Column(name = "access_type", nullable = false, unique = true, length = 50)
     @EqualsAndHashCode.Include
     private String accessType;
 
-    @Column(name = "descricao", length = 255)
+    @Column(name = "description", length = 255)
     private String description;
 }

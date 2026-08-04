@@ -12,7 +12,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_alerta")
+@Table(name = "tb_alert")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,39 +25,39 @@ public class Alert {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_alerta")
+    @Column(name = "id_alert")
     @EqualsAndHashCode.Include
     private Integer id;
 
-    @Column(name = "tipo", nullable = false, length = 30)
+    @Column(name = "type", nullable = false, length = 30)
     private String type;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "severidade", nullable = false, length = 10)
+    @Column(name = "severity", nullable = false, length = 10)
     private AlertSeverity severity;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_lote")
+    @JoinColumn(name = "id_batch")
     @ToString.Exclude
     private StockBatch batch;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_produto")
+    @JoinColumn(name = "id_product")
     @ToString.Exclude
     private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_cozinha", nullable = false)
+    @JoinColumn(name = "id_kitchen", nullable = false)
     @ToString.Exclude
     private Kitchen kitchen;
 
-    @Column(name = "mensagem", nullable = false, length = 255)
+    @Column(name = "message", nullable = false, length = 255)
     private String message;
 
-    @Column(name = "lido", nullable = false)
+    @Column(name = "is_read", nullable = false)
     private Boolean read = false;
 
     @CreatedDate
-    @Column(name = "criado_em", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 }

@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "tb_estoque_lote")
+@Table(name = "tb_stock_batch")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,47 +23,47 @@ public class StockBatch {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_lote")
+    @Column(name = "id_batch")
     @EqualsAndHashCode.Include
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_produto", nullable = false)
+    @JoinColumn(name = "id_product", nullable = false)
     @ToString.Exclude
     private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_cozinha", nullable = false)
+    @JoinColumn(name = "id_kitchen", nullable = false)
     @ToString.Exclude
     private Kitchen kitchen;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_fornecedor")
+    @JoinColumn(name = "id_supplier")
     @ToString.Exclude
     private Supplier supplier;
 
-    @Column(name = "numero_lote", nullable = false, length = 50)
+    @Column(name = "batch_number", nullable = false, length = 50)
     private String batchNumber;
 
-    @Column(name = "numero_nota_fiscal", length = 50)
+    @Column(name = "invoice_number", length = 50)
     private String invoiceNumber;
 
-    @Column(name = "qtd_inicial", nullable = false, precision = 12, scale = 3)
+    @Column(name = "initial_quantity", nullable = false, precision = 12, scale = 3)
     private BigDecimal initialQuantity;
 
-    @Column(name = "qtd_atual", nullable = false, precision = 12, scale = 3)
+    @Column(name = "current_quantity", nullable = false, precision = 12, scale = 3)
     private BigDecimal currentQuantity;
 
-    @Column(name = "data_entrada", nullable = false)
+    @Column(name = "entry_date", nullable = false)
     private LocalDate entryDate;
 
-    @Column(name = "data_validade")
+    @Column(name = "expiration_date")
     private LocalDate expirationDate;
 
-    @Column(name = "preco_unitario", precision = 12, scale = 2)
+    @Column(name = "unit_price", precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private StockBatchStatus status = StockBatchStatus.ATIVO;
+    private StockBatchStatus status = StockBatchStatus.ACTIVE;
 }

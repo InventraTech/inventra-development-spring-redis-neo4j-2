@@ -1,8 +1,8 @@
 package com.inventra.api.core.domain.alert.enums;
 
 public enum AlertSeverity {
-    BAIXA,
-    MEDIA,
-    ALTA,
-    CRITICA
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
 }

@@ -8,7 +8,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_cozinha")
+@Table(name = "tb_kitchen")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,24 +21,24 @@ public class Kitchen {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_cozinha")
+    @Column(name = "id_kitchen")
     @EqualsAndHashCode.Include
     private Integer id;
 
-    @Column(name = "nome", nullable = false, length = 120)
+    @Column(name = "name", nullable = false, length = 120)
     private String name;
 
-    @Column(name = "codigo", nullable = false, unique = true, length = 20)
+    @Column(name = "code", nullable = false, unique = true, length = 20)
     @EqualsAndHashCode.Include
     private String code;
 
-    @Column(name = "endereco", length = 255)
+    @Column(name = "address", length = 255)
     private String address;
 
-    @Column(name = "ativo", nullable = false)
+    @Column(name = "active", nullable = false)
     private Boolean active = true;
 
     @CreatedDate
-    @Column(name = "criado_em", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 }
