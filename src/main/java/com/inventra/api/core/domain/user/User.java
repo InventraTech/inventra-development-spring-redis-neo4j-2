@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "tb_usuario")
+@Table(name = "tb_user")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,42 +23,42 @@ import java.util.UUID;
 public class User {
 
     @Id
-    @Column(name = "id_usuario", updatable = false, nullable = false)
+    @Column(name = "id_user", updatable = false, nullable = false)
     @EqualsAndHashCode.Include
     private UUID id;
 
-    @Column(name = "nome", nullable = false, length = 120)
+    @Column(name = "name", nullable = false, length = 120)
     private String name;
 
     @Column(name = "email", nullable = false, unique = true, length = 150)
     @EqualsAndHashCode.Include
     private String email;
 
-    @Column(name = "senha_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", nullable = false, length = 255)
     @ToString.Exclude
     private String passwordHash;
 
-    @Column(name = "cargo", length = 80)
+    @Column(name = "role", length = 80)
     private String role;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_cozinha")
+    @JoinColumn(name = "id_kitchen")
     @ToString.Exclude
     private Kitchen kitchen;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_perfil", nullable = false)
+    @JoinColumn(name = "id_profile", nullable = false)
     @ToString.Exclude
     private Profile profile;
 
-    @Column(name = "ativo", nullable = false)
+    @Column(name = "active", nullable = false)
     private Boolean active = true;
 
-    @Column(name = "ultimo_login")
+    @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
     @CreatedDate
-    @Column(name = "criado_em", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
 }

@@ -8,7 +8,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_fornecedor")
+@Table(name = "tb_supplier")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,11 +21,11 @@ public class Supplier {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_fornecedor")
+    @Column(name = "id_supplier")
     @EqualsAndHashCode.Include
     private Integer id;
 
-    @Column(name = "nome_juridico", nullable = false, length = 150)
+    @Column(name = "legal_name", nullable = false, length = 150)
     private String legalName;
 
     @Column(name = "cnpj", nullable = false, unique = true, length = 18)
@@ -38,13 +38,13 @@ public class Supplier {
     @Column(name = "whatsapp", length = 20)
     private String whatsapp;
 
-    @Column(name = "nota_avaliacao")
+    @Column(name = "rating")
     private Integer rating;
 
-    @Column(name = "ativo", nullable = false)
+    @Column(name = "active", nullable = false)
     private Boolean active = true;
 
     @CreatedDate
-    @Column(name = "criado_em", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 }

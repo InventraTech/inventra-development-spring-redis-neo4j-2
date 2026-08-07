@@ -10,7 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_produto")
+@Table(name = "tb_product")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,38 +23,38 @@ public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_produto")
+    @Column(name = "id_product")
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "nome", nullable = false, length = 150)
+    @Column(name = "name", nullable = false, length = 150)
     @EqualsAndHashCode.Include
     private String name;
 
-    @Column(name = "marca", length = 80)
+    @Column(name = "brand", length = 80)
     private String brand;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_categoria")
+    @JoinColumn(name = "id_category")
     @ToString.Exclude
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_unidade", nullable = false)
+    @JoinColumn(name = "id_unit", nullable = false)
     @ToString.Exclude
     private Unit unit;
 
-    @Column(name = "codigo_barras", unique = true, length = 50)
+    @Column(name = "barcode", unique = true, length = 50)
     private String barcode;
 
-    @Column(name = "foto_url", length = 255)
+    @Column(name = "photo_url", length = 255)
     private String photoUrl;
 
-    @Column(name = "ativo", nullable = false)
+    @Column(name = "active", nullable = false)
     private Boolean active = true;
 
     @CreatedDate
-    @Column(name = "criado_em", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public boolean isNew() {

@@ -15,9 +15,9 @@ import java.io.Serializable;
 @EqualsAndHashCode
 public class ProductSupplierId implements Serializable {
 
-    @Column(name = "id_produto")
+    @Column(name = "id_product")
     private Long productId;
 
-    @Column(name = "id_fornecedor")
+    @Column(name = "id_supplier")
     private Integer supplierId;
 }

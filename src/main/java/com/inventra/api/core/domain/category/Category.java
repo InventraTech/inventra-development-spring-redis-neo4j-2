@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "tb_categoria")
+@Table(name = "tb_category")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,14 +16,14 @@ public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_categoria")
+    @Column(name = "id_category")
     @EqualsAndHashCode.Include
     private Integer id;
 
-    @Column(name = "nome", nullable = false, unique = true, length = 80)
+    @Column(name = "name", nullable = false, unique = true, length = 80)
     @EqualsAndHashCode.Include
     private String name;
 
-    @Column(name = "descricao", length = 255)
+    @Column(name = "description", length = 255)
     private String description;
 }

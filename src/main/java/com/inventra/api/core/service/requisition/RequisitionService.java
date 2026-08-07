@@ -48,7 +48,7 @@ public class RequisitionService implements RequisitionUseCase {
         Requisition requisition = Requisition.builder()
             .type(request.type())
             .origin(request.origin())
-            .status(RequisitionStatus.EM_ANALISE)
+            .status(RequisitionStatus.UNDER_REVIEW)
             .kitchen(kitchen)
             .requester(requester)
             .build();
@@ -104,7 +104,7 @@ public class RequisitionService implements RequisitionUseCase {
             throw new RuntimeException("Requisição sem itens não pode ser enviada.");
         }
 
-        // o enum RequisitionStatus não tem um status de rascunho separado de EM_ANALISE;
+        // o enum RequisitionStatus não tem um status de rascunho separado de UNDER_REVIEW;
         // submit só valida que a requisição está pronta, não muda o status.
         return requisition;
     }
@@ -116,7 +116,7 @@ public class RequisitionService implements RequisitionUseCase {
         User approver = userRepository.findById(approverId)
             .orElseThrow(() -> new RuntimeException("Usuário aprovador não encontrado."));
 
-        requisition.setStatus(RequisitionStatus.APROVADO);
+        requisition.setStatus(RequisitionStatus.APPROVED);
         requisition.setApprover(approver);
         requisition.setApprovedAt(LocalDateTime.now());
         Requisition saved = repository.save(requisition);
@@ -134,7 +134,7 @@ public class RequisitionService implements RequisitionUseCase {
     public Requisition reject(Integer requisitionId, String reason) {
         Requisition requisition = findEditableRequisition(requisitionId);
 
-        requisition.setStatus(RequisitionStatus.REPROVADO);
+        requisition.setStatus(RequisitionStatus.REJECTED);
         requisition.setReason(reason);
 
         return repository.save(requisition);
@@ -159,7 +159,7 @@ public class RequisitionService implements RequisitionUseCase {
         Requisition requisition = repository.findById(requisitionId)
             .orElseThrow(() -> new RuntimeException("Requisição não encontrada."));
 
-        if (requisition.getStatus() != RequisitionStatus.EM_ANALISE) {
+        if (requisition.getStatus() != RequisitionStatus.UNDER_REVIEW) {
             throw new RuntimeException("Requisição não está mais em análise.");
         }
 

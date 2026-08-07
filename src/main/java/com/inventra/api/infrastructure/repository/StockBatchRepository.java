@@ -25,7 +25,7 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, Integer>
 
     @Query("""
             SELECT COALESCE(SUM(sb.currentQuantity), 0) FROM StockBatch sb
-            WHERE sb.product.id = :productId AND sb.kitchen.id = :kitchenId AND sb.status = 'ATIVO'
+            WHERE sb.product.id = :productId AND sb.kitchen.id = :kitchenId AND sb.status = 'ACTIVE'
             """)
     BigDecimal sumActiveQuantity(@Param("productId") Long productId, @Param("kitchenId") Integer kitchenId);
 

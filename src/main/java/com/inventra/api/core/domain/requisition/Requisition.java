@@ -12,7 +12,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_requisicao")
+@Table(name = "tb_requisition")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,43 +25,43 @@ public class Requisition {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_requisicao")
+    @Column(name = "id_requisition")
     @EqualsAndHashCode.Include
     private Integer id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_requisicao", nullable = false, length = 20)
+    @Column(name = "requisition_type", nullable = false, length = 20)
     private RequisitionType type;
 
-    @Column(name = "origem", nullable = false, length = 20)
+    @Column(name = "origin", nullable = false, length = 20)
     private String origin;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private RequisitionStatus status = RequisitionStatus.EM_ANALISE;
+    private RequisitionStatus status = RequisitionStatus.UNDER_REVIEW;
 
-    @Column(name = "motivo", length = 255)
+    @Column(name = "reason", length = 255)
     private String reason;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_cozinha", nullable = false)
+    @JoinColumn(name = "id_kitchen", nullable = false)
     @ToString.Exclude
     private Kitchen kitchen;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_usuario_requisicao", nullable = false)
+    @JoinColumn(name = "id_requester_user", nullable = false)
     @ToString.Exclude
     private User requester;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_usuario_aprovador")
+    @JoinColumn(name = "id_approver_user")
     @ToString.Exclude
     private User approver;
 
     @CreatedDate
-    @Column(name = "data_hora", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "data_aprovacao")
+    @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 }

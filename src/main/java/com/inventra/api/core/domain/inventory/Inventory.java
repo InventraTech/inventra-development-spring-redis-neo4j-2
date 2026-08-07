@@ -11,7 +11,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_inventario")
+@Table(name = "tb_inventory")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,31 +24,31 @@ public class Inventory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_inventario")
+    @Column(name = "id_inventory")
     @EqualsAndHashCode.Include
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_cozinha", nullable = false)
+    @JoinColumn(name = "id_kitchen", nullable = false)
     @ToString.Exclude
     private Kitchen kitchen;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_usuario_responsavel", nullable = false)
+    @JoinColumn(name = "id_responsible_user", nullable = false)
     @ToString.Exclude
     private User responsible;
 
     @CreatedDate
-    @Column(name = "data_inicio", nullable = false, updatable = false)
+    @Column(name = "started_at", nullable = false, updatable = false)
     private LocalDateTime startedAt;
 
-    @Column(name = "data_fechamento")
+    @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private InventoryStatus status = InventoryStatus.ABERTO;
+    private InventoryStatus status = InventoryStatus.OPEN;
 
-    @Column(name = "observacao", length = 255)
+    @Column(name = "note", length = 255)
     private String note;
 }

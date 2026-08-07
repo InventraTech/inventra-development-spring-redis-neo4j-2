@@ -15,9 +15,9 @@ import java.io.Serializable;
 @EqualsAndHashCode
 public class ProductKitchenParameterId implements Serializable {
 
-    @Column(name = "id_produto")
+    @Column(name = "id_product")
     private Long productId;
 
-    @Column(name = "id_cozinha")
+    @Column(name = "id_kitchen")
     private Integer kitchenId;
 }

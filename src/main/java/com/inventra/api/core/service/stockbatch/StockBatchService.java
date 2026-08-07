@@ -58,7 +58,7 @@ public class StockBatchService implements StockBatchUseCase {
             .entryDate(request.entryDate())
             .expirationDate(request.expirationDate())
             .unitPrice(request.unitPrice())
-            .status(StockBatchStatus.ATIVO)
+            .status(StockBatchStatus.ACTIVE)
             .build();
 
         return repository.save(batch);
@@ -75,7 +75,7 @@ public class StockBatchService implements StockBatchUseCase {
 
         batch.setCurrentQuantity(batch.getCurrentQuantity().subtract(quantity));
         if (batch.getCurrentQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-            batch.setStatus(StockBatchStatus.BAIXA);
+            batch.setStatus(StockBatchStatus.WRITTEN_OFF);
         }
 
         return repository.save(batch);
@@ -86,7 +86,7 @@ public class StockBatchService implements StockBatchUseCase {
     public void consumeForProduct(Integer kitchenId, Long productId, BigDecimal quantity) {
         List<StockBatch> batches = repository
             .findByKitchenIdAndProductIdAndStatusOrderByExpirationDateAscEntryDateAsc(
-                kitchenId, productId, StockBatchStatus.ATIVO);
+                kitchenId, productId, StockBatchStatus.ACTIVE);
 
         BigDecimal remaining = quantity;
         for (StockBatch batch : batches) {
@@ -97,7 +97,7 @@ public class StockBatchService implements StockBatchUseCase {
             BigDecimal taken = batch.getCurrentQuantity().min(remaining);
             batch.setCurrentQuantity(batch.getCurrentQuantity().subtract(taken));
             if (batch.getCurrentQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-                batch.setStatus(StockBatchStatus.BAIXA);
+                batch.setStatus(StockBatchStatus.WRITTEN_OFF);
             }
             repository.save(batch);
 
@@ -116,9 +116,9 @@ public class StockBatchService implements StockBatchUseCase {
 
         batch.setCurrentQuantity(newQuantity);
         if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
-            batch.setStatus(StockBatchStatus.BAIXA);
-        } else if (batch.getStatus() == StockBatchStatus.BAIXA) {
-            batch.setStatus(StockBatchStatus.ATIVO);
+            batch.setStatus(StockBatchStatus.WRITTEN_OFF);
+        } else if (batch.getStatus() == StockBatchStatus.WRITTEN_OFF) {
+            batch.setStatus(StockBatchStatus.ACTIVE);
         }
 
         return repository.save(batch);
@@ -128,7 +128,7 @@ public class StockBatchService implements StockBatchUseCase {
     public List<StockBatch> findExpiringSoon(Integer kitchenId, int days) {
         LocalDate today = LocalDate.now();
         return repository.findByKitchenIdAndStatusAndExpirationDateBetween(
-            kitchenId, StockBatchStatus.ATIVO, today, today.plusDays(days));
+            kitchenId, StockBatchStatus.ACTIVE, today, today.plusDays(days));
     }
 
     @Override

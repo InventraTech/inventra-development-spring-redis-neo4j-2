@@ -7,7 +7,7 @@ import lombok.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "tb_produto_fornecedor")
+@Table(name = "tb_product_supplier")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,22 +23,22 @@ public class ProductSupplier {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("productId")
-    @JoinColumn(name = "id_produto")
+    @JoinColumn(name = "id_product")
     @ToString.Exclude
     private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("supplierId")
-    @JoinColumn(name = "id_fornecedor")
+    @JoinColumn(name = "id_supplier")
     @ToString.Exclude
     private Supplier supplier;
 
-    @Column(name = "codigo_no_fornecedor", length = 50)
+    @Column(name = "supplier_code", length = 50)
     private String supplierCode;
 
-    @Column(name = "preco_referencia", precision = 12, scale = 2)
+    @Column(name = "reference_price", precision = 12, scale = 2)
     private BigDecimal referencePrice;
 
-    @Column(name = "lead_time_dias")
+    @Column(name = "lead_time_days")
     private Integer leadTimeDays;
 }
