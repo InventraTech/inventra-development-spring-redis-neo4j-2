@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class StockBatchService implements StockBatchUseCase {
+public class    StockBatchService implements StockBatchUseCase {
 
     private final StockBatchRepository repository;
     private final ProductRepository productRepository;
