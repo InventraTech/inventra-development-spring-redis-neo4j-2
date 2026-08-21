@@ -6,4 +6,6 @@ import com.inventra.api.core.domain.category.Category;
 
 public interface CategoryRepository extends JpaRepository<Category, Integer> {
 
+    boolean existsByName(String name);
+
 }

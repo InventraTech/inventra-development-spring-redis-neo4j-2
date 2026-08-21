@@ -12,6 +12,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     boolean existsByBarcode(String barcode);
 
+    boolean existsByCategoryId(Integer categoryId);
+
+    boolean existsByUnitId(Integer unitId);
+
     @Query("""
             SELECT p FROM Product p
             WHERE (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
