@@ -71,7 +71,7 @@ public class ProductService implements ProductUseCase {
     }
 
     @Override
-    public Product findById(Long id) {
+    public Product findById(Integer id) {
         return repository.findById(id)
             .orElseThrow(() -> new RuntimeException("Produto não encontrado."));
     }
@@ -82,7 +82,7 @@ public class ProductService implements ProductUseCase {
     }
 
     @Override
-    public Product update(Long id, UpdateProductRequest request) {
+    public Product update(Integer id, UpdateProductRequest request) {
         Product product = findById(id);
 
         if (request.name() != null) {
@@ -115,21 +115,21 @@ public class ProductService implements ProductUseCase {
     }
 
     @Override
-    public void activate(Long id) {
+    public void activate(Integer id) {
         Product product = findById(id);
         product.setActive(true);
         repository.save(product);
     }
 
     @Override
-    public void deactivate(Long id) {
+    public void deactivate(Integer id) {
         Product product = findById(id);
         product.setActive(false);
         repository.save(product);
     }
 
     @Override
-    public void linkSupplier(Long productId, LinkSupplierRequest request) {
+    public void linkSupplier(Integer productId, LinkSupplierRequest request) {
         Product product = findById(productId);
         Supplier supplier = supplierRepository.findById(request.supplierId())
             .orElseThrow(() -> new RuntimeException("Fornecedor não encontrado."));
@@ -147,7 +147,7 @@ public class ProductService implements ProductUseCase {
     }
 
     @Override
-    public void setKitchenParameters(Long productId, SetKitchenParametersRequest request) {
+    public void setKitchenParameters(Integer productId, SetKitchenParametersRequest request) {
         Product product = findById(productId);
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
             .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));

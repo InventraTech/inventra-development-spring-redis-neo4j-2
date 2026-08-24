@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.inventra.api.core.domain.product.Product;
 
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     boolean existsByBarcode(String barcode);
 
