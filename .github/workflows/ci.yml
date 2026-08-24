@@ -1,36 +1,9 @@
-name: CI - Integração Contínua
+name: "CI"
 
 on:
-  push:
-    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
 
 jobs:
-  build:
-    name: Build da aplicação
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Dar permissão de execução ao Maven Wrapper
-        run: chmod +x mvnw
-
-      - name: Compilar e empacotar o projeto
-        run: ./mvnw -B -ntp package -DskipTests
-
-      - name: Publicar o JAR gerado
-        uses: actions/upload-artifact@v4
-        with:
-          name: inventra-api
-          path: target/*.jar
-          if-no-files-found: error
+  ci:
+    uses: InventraTech/.github/.github/workflows/ci-java.yaml@main
