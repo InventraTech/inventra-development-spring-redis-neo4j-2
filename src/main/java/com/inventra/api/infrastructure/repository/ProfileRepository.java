@@ -6,4 +6,6 @@ import com.inventra.api.core.domain.profile.Profile;
 
 public interface ProfileRepository extends JpaRepository<Profile, Integer> {
 
+    boolean existsByAccessType(String accessType);
+
 }
