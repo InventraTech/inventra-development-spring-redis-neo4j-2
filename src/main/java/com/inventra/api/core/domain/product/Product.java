@@ -25,7 +25,7 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_product")
     @EqualsAndHashCode.Include
-    private Long id;
+    private Integer id;
 
     @Column(name = "name", nullable = false, length = 150)
     @EqualsAndHashCode.Include

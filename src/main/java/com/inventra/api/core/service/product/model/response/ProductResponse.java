@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import com.inventra.api.core.domain.product.Product;
 
 public record ProductResponse(
-        Long id,
+        Integer id,
         String name,
         String brand,
         CategorySummary category,

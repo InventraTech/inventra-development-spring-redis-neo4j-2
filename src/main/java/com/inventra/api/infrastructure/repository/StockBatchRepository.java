@@ -15,10 +15,10 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, Integer>
 
     List<StockBatch> findByKitchenId(Integer kitchenId);
 
-    List<StockBatch> findByProductId(Long productId);
+    List<StockBatch> findByProductId(Integer productId);
 
     List<StockBatch> findByKitchenIdAndProductIdAndStatusOrderByExpirationDateAscEntryDateAsc(
-            Integer kitchenId, Long productId, StockBatchStatus status);
+            Integer kitchenId, Integer productId, StockBatchStatus status);
 
     List<StockBatch> findByKitchenIdAndStatusAndExpirationDateBetween(
             Integer kitchenId, StockBatchStatus status, LocalDate start, LocalDate end);
@@ -27,6 +27,6 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, Integer>
             SELECT COALESCE(SUM(sb.currentQuantity), 0) FROM StockBatch sb
             WHERE sb.product.id = :productId AND sb.kitchen.id = :kitchenId AND sb.status = 'ACTIVE'
             """)
-    BigDecimal sumActiveQuantity(@Param("productId") Long productId, @Param("kitchenId") Integer kitchenId);
+    BigDecimal sumActiveQuantity(@Param("productId") Integer productId, @Param("kitchenId") Integer kitchenId);
 
 }

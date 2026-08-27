@@ -20,7 +20,7 @@ public record StockBatchResponse(
         BigDecimal unitPrice,
         StockBatchStatus status
 ) {
-    public record ProductSummary(Long id, String name) {
+    public record ProductSummary(Integer id, String name) {
     }
 
     public record KitchenSummary(Integer id, String name) {

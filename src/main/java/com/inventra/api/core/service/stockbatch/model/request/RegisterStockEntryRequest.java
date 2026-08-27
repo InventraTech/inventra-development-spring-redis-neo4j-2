@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record RegisterStockEntryRequest(
-        Long productId,
+        Integer productId,
         Integer kitchenId,
         Integer supplierId,
         String batchNumber,
