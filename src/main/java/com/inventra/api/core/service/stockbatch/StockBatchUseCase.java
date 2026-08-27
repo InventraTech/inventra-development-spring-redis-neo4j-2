@@ -14,7 +14,7 @@ public interface StockBatchUseCase {
     StockBatch consume(Integer batchId, BigDecimal quantity);
 
     // baixa por FEFO (lote mais próximo do vencimento primeiro) — usado pelo fluxo de aprovação de requisição
-    void consumeForProduct(Integer kitchenId, Long productId, BigDecimal quantity);
+    void consumeForProduct(Integer kitchenId, Integer productId, BigDecimal quantity);
 
     StockBatch adjust(Integer batchId, BigDecimal newQuantity);
 
@@ -24,5 +24,5 @@ public interface StockBatchUseCase {
 
     List<StockBatch> listByKitchen(Integer kitchenId);
 
-    List<StockBatch> listByProduct(Long productId);
+    List<StockBatch> listByProduct(Integer productId);
 }

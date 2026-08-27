@@ -16,7 +16,7 @@ import java.io.Serializable;
 public class ProductKitchenParameterId implements Serializable {
 
     @Column(name = "id_product")
-    private Long productId;
+    private Integer productId;
 
     @Column(name = "id_kitchen")
     private Integer kitchenId;

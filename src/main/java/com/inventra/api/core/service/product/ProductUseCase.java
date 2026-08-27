@@ -13,18 +13,18 @@ public interface ProductUseCase {
 
     Product create(CreateProductRequest request);
 
-    Product findById(Long id);
+    Product findById(Integer id);
 
     Page<Product> search(String name, Integer categoryId, Boolean active, Pageable pageable);
 
-    Product update(Long id, UpdateProductRequest request);
+    Product update(Integer id, UpdateProductRequest request);
 
-    void activate(Long id);
+    void activate(Integer id);
 
-    void deactivate(Long id);
+    void deactivate(Integer id);
 
     // pode nascer aqui e depois virar service próprio
-    void linkSupplier(Long productId, LinkSupplierRequest request);
+    void linkSupplier(Integer productId, LinkSupplierRequest request);
 
-    void setKitchenParameters(Long productId, SetKitchenParametersRequest request);
+    void setKitchenParameters(Integer productId, SetKitchenParametersRequest request);
 }

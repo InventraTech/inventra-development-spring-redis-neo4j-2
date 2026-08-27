@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 public record LowStockAlertResponse(
         Integer kitchenId,
-        Long productId,
+        Integer productId,
         BigDecimal currentQuantity,
         BigDecimal minStock
 ) {

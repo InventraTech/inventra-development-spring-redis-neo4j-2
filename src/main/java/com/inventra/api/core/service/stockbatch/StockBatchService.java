@@ -83,7 +83,7 @@ public class    StockBatchService implements StockBatchUseCase {
 
     @Override
     @Transactional
-    public void consumeForProduct(Integer kitchenId, Long productId, BigDecimal quantity) {
+    public void consumeForProduct(Integer kitchenId, Integer productId, BigDecimal quantity) {
         List<StockBatch> batches = repository
             .findByKitchenIdAndProductIdAndStatusOrderByExpirationDateAscEntryDateAsc(
                 kitchenId, productId, StockBatchStatus.ACTIVE);
@@ -154,7 +154,7 @@ public class    StockBatchService implements StockBatchUseCase {
     }
 
     @Override
-    public List<StockBatch> listByProduct(Long productId) {
+    public List<StockBatch> listByProduct(Integer productId) {
         return repository.findByProductId(productId);
     }
 }
