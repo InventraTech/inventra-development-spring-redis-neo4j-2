@@ -1,56 +1,10 @@
-name: CD - Implantação Contínua
+name: "CD"
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build da aplicação
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Configurar JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Dar permissão de execução ao Maven Wrapper
-        run: chmod +x mvnw
-
-      - name: Compilar e empacotar o projeto
-        run: ./mvnw -B -ntp package -DskipTests
-
-      - name: Publicar o JAR gerado
-        uses: actions/upload-artifact@v4
-        with:
-          name: inventra-api
-          path: target/*.jar
-          if-no-files-found: error
-
-  deploy:
-    name: Implantação da aplicação
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Baixar o JAR gerado no build
-        uses: actions/download-artifact@v4
-        with:
-          name: inventra-api
-          path: ./deploy
-
-      - name: Executar implantação
-        run: |
-          echo "==============================================="
-          echo "  Implantacao do inventra-api em execucao..."
-          echo "==============================================="
-          ls -la ./deploy
-          echo ""
-          echo "Deploy do inventra-api concluido com sucesso!"
+  cd:
+    uses: InventraTech/.github/.github/workflows/cd-java.yaml@main
+    secrets: inherit
