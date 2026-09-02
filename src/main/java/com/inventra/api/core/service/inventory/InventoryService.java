@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.inventra.api.core.domain.inventory.Inventory;
 import com.inventra.api.core.domain.inventory.InventoryCount;
@@ -14,6 +15,7 @@ import com.inventra.api.core.domain.stock.StockBatch;
 import com.inventra.api.core.domain.user.User;
 import com.inventra.api.core.service.inventory.model.request.OpenInventoryRequest;
 import com.inventra.api.core.service.inventory.model.request.RegisterInventoryCountRequest;
+import com.inventra.api.core.service.stockbatch.StockBatchUseCase;
 import com.inventra.api.infrastructure.repository.InventoryCountRepository;
 import com.inventra.api.infrastructure.repository.InventoryRepository;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
@@ -31,9 +33,14 @@ public class InventoryService implements InventoryUseCase {
     private final KitchenRepository kitchenRepository;
     private final UserRepository userRepository;
     private final StockBatchRepository stockBatchRepository;
+    private final StockBatchUseCase stockBatchUseCase;
 
     @Override
     public Inventory open(OpenInventoryRequest request) {
+        if (repository.existsByKitchenIdAndStatus(request.kitchenId(), InventoryStatus.OPEN)) {
+            throw new RuntimeException("Já existe um inventário em aberto para essa cozinha.");
+        }
+
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
             .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
         User responsible = userRepository.findById(request.responsibleId())
@@ -83,15 +90,49 @@ public class InventoryService implements InventoryUseCase {
     }
 
     @Override
+    public Inventory removeCount(Integer inventoryId, Integer countId) {
+        Inventory inventory = findOpenInventory(inventoryId);
+
+        InventoryCount count = countRepository.findById(countId)
+            .orElseThrow(() -> new RuntimeException("Contagem não encontrada."));
+        if (!count.getInventory().getId().equals(inventoryId)) {
+            throw new RuntimeException("Contagem não pertence a esse inventário.");
+        }
+
+        countRepository.delete(count);
+        return inventory;
+    }
+
+    @Override
     public List<InventoryCount> listCounts(Integer inventoryId) {
         return countRepository.findByInventoryId(inventoryId);
     }
 
     @Override
+    @Transactional
     public Inventory close(Integer inventoryId) {
         Inventory inventory = findOpenInventory(inventoryId);
 
+        List<InventoryCount> counts = countRepository.findByInventoryId(inventoryId);
+        if (counts.isEmpty()) {
+            throw new RuntimeException("Inventário sem contagens não pode ser fechado.");
+        }
+
+        for (InventoryCount count : counts) {
+            stockBatchUseCase.adjust(count.getBatch().getId(), count.getPhysicalQuantity());
+        }
+
         inventory.setStatus(InventoryStatus.CLOSED);
+        inventory.setClosedAt(LocalDateTime.now());
+
+        return repository.save(inventory);
+    }
+
+    @Override
+    public Inventory cancel(Integer inventoryId) {
+        Inventory inventory = findOpenInventory(inventoryId);
+
+        inventory.setStatus(InventoryStatus.CANCELLED);
         inventory.setClosedAt(LocalDateTime.now());
 
         return repository.save(inventory);

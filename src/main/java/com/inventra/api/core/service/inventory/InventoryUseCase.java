@@ -17,7 +17,12 @@ public interface InventoryUseCase {
 
     InventoryCount registerCount(Integer inventoryId, RegisterInventoryCountRequest request);
 
+    Inventory removeCount(Integer inventoryId, Integer countId);
+
     List<InventoryCount> listCounts(Integer inventoryId);
 
+    // fecha o inventário e reconcilia a contagem física em cada lote via StockBatchUseCase
     Inventory close(Integer inventoryId);
+
+    Inventory cancel(Integer inventoryId);
 }
