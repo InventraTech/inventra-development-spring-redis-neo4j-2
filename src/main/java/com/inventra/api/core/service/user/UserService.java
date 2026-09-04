@@ -1,6 +1,7 @@
 package com.inventra.api.core.service.user;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -66,6 +67,11 @@ public class UserService implements UserUseCase {
     public User findByEmail(String email) {
         return repository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+    }
+
+    @Override
+    public List<User> listAll(){
+        return repository.findAll();
     }
 
     @Override
