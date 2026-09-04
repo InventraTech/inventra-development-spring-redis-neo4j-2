@@ -1,19 +1,21 @@
 package com.inventra.api.infrastructure.controller;
 
+import java.net.URI;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
 import com.inventra.api.core.domain.user.User;
 import com.inventra.api.core.service.user.UserUseCase;
 import com.inventra.api.core.service.user.model.request.ChangePasswordRequest;
 import com.inventra.api.core.service.user.model.request.CreateUserRequest;
 import com.inventra.api.core.service.user.model.request.UpdateUserRequest;
 import com.inventra.api.core.service.user.model.response.UserResponse;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.net.URI;
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
@@ -24,7 +26,6 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
-
         User created = useCase.create(request);
         UserResponse response = UserResponse.fromEntity(created);
         return ResponseEntity.created(URI.create("/api/users/" + response.id())).body(response);
@@ -36,21 +37,23 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> listAll(){
+    public ResponseEntity<List<UserResponse>> listAll() {
         List<UserResponse> responses = useCase.listAll().stream()
-                .map(UserResponse :: fromEntity)
+                .map(UserResponse::fromEntity)
                 .toList();
         return ResponseEntity.ok(responses);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> update(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
+    public ResponseEntity<UserResponse> update(@PathVariable UUID id,
+                                                @Valid @RequestBody UpdateUserRequest request) {
         User updated = useCase.update(id, request);
         return ResponseEntity.ok(UserResponse.fromEntity(updated));
     }
 
     @PatchMapping("/{id}/password")
-    public ResponseEntity<Void> changePassword(@PathVariable UUID id, @Valid @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<Void> changePassword(@PathVariable UUID id,
+                                                @Valid @RequestBody ChangePasswordRequest request) {
         useCase.changePassword(id, request);
         return ResponseEntity.noContent().build();
     }
@@ -66,5 +69,4 @@ public class UserController {
         useCase.deactivate(id);
         return ResponseEntity.noContent().build();
     }
-
 }
