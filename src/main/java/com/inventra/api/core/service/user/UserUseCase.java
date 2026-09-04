@@ -5,6 +5,7 @@ import com.inventra.api.core.service.user.model.request.CreateUserRequest;
 import com.inventra.api.core.service.user.model.request.UpdateUserRequest;
 import com.inventra.api.core.domain.user.User;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface UserUseCase {
@@ -14,6 +15,8 @@ public interface UserUseCase {
     User findById(UUID id);
 
     User findByEmail(String email);
+
+    List<User> listAll();
 
     User update(UUID id, UpdateUserRequest request);
 
