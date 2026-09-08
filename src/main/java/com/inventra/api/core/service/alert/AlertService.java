@@ -9,6 +9,7 @@ import com.inventra.api.core.domain.kitchen.Kitchen;
 import com.inventra.api.core.domain.product.Product;
 import com.inventra.api.core.domain.stock.StockBatch;
 import com.inventra.api.core.service.alert.model.request.CreateAlertRequest;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.AlertRepository;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProductRepository;
@@ -28,18 +29,18 @@ public class AlertService implements AlertUseCase {
     @Override
     public Alert create(CreateAlertRequest request) {
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
-            .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
 
         Product product = null;
         if (request.productId() != null) {
             product = productRepository.findById(request.productId())
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado."));
         }
 
         StockBatch batch = null;
         if (request.batchId() != null) {
             batch = stockBatchRepository.findById(request.batchId())
-                .orElseThrow(() -> new RuntimeException("Lote não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Lote não encontrado."));
         }
 
         Alert alert = Alert.builder()
@@ -58,7 +59,7 @@ public class AlertService implements AlertUseCase {
     @Override
     public Alert findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Alerta não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Alerta não encontrado."));
     }
 
     @Override

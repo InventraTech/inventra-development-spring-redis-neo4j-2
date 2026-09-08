@@ -17,6 +17,8 @@ import com.inventra.api.core.domain.requisition.RequisitionItem;
 import com.inventra.api.core.domain.requisition.enums.RequisitionStatus;
 import com.inventra.api.core.domain.supplier.Supplier;
 import com.inventra.api.core.domain.user.User;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProductRepository;
 import com.inventra.api.infrastructure.repository.RequisitionItemRepository;
@@ -41,9 +43,9 @@ public class RequisitionService implements RequisitionUseCase {
     @Override
     public Requisition create(CreateRequisitionRequest request) {
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
-            .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
         User requester = userRepository.findById(request.requesterId())
-            .orElseThrow(() -> new RuntimeException("Usuário requisitante não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário requisitante não encontrado."));
 
         Requisition requisition = Requisition.builder()
             .type(request.type())
@@ -61,12 +63,12 @@ public class RequisitionService implements RequisitionUseCase {
         Requisition requisition = findEditableRequisition(requisitionId);
 
         Product product = productRepository.findById(request.productId())
-            .orElseThrow(() -> new RuntimeException("Produto não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado."));
 
         Supplier suggestedSupplier = null;
         if (request.suggestedSupplierId() != null) {
             suggestedSupplier = supplierRepository.findById(request.suggestedSupplierId())
-                .orElseThrow(() -> new RuntimeException("Fornecedor não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Fornecedor não encontrado."));
         }
 
         RequisitionItem item = RequisitionItem.builder()
@@ -87,9 +89,9 @@ public class RequisitionService implements RequisitionUseCase {
         Requisition requisition = findEditableRequisition(requisitionId);
 
         RequisitionItem item = itemRepository.findById(itemId)
-            .orElseThrow(() -> new RuntimeException("Item não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Item não encontrado."));
         if (!item.getRequisition().getId().equals(requisitionId)) {
-            throw new RuntimeException("Item não pertence a essa requisição.");
+            throw new BusinessRuleException("Item não pertence a essa requisição.");
         }
 
         itemRepository.delete(item);
@@ -101,7 +103,7 @@ public class RequisitionService implements RequisitionUseCase {
         Requisition requisition = findEditableRequisition(requisitionId);
 
         if (itemRepository.countByRequisitionId(requisitionId) == 0) {
-            throw new RuntimeException("Requisição sem itens não pode ser enviada.");
+            throw new BusinessRuleException("Requisição sem itens não pode ser enviada.");
         }
 
         // o enum RequisitionStatus não tem um status de rascunho separado de UNDER_REVIEW;
@@ -114,7 +116,7 @@ public class RequisitionService implements RequisitionUseCase {
     public Requisition approve(Integer requisitionId, UUID approverId) {
         Requisition requisition = findEditableRequisition(requisitionId);
         User approver = userRepository.findById(approverId)
-            .orElseThrow(() -> new RuntimeException("Usuário aprovador não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário aprovador não encontrado."));
 
         requisition.setStatus(RequisitionStatus.APPROVED);
         requisition.setApprover(approver);
@@ -157,10 +159,10 @@ public class RequisitionService implements RequisitionUseCase {
 
     private Requisition findEditableRequisition(Integer requisitionId) {
         Requisition requisition = repository.findById(requisitionId)
-            .orElseThrow(() -> new RuntimeException("Requisição não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Requisição não encontrada."));
 
         if (requisition.getStatus() != RequisitionStatus.UNDER_REVIEW) {
-            throw new RuntimeException("Requisição não está mais em análise.");
+            throw new BusinessRuleException("Requisição não está mais em análise.");
         }
 
         return requisition;

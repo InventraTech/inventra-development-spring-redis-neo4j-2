@@ -13,6 +13,8 @@ import com.inventra.api.core.service.user.model.request.UpdateUserRequest;
 import com.inventra.api.core.domain.kitchen.Kitchen;
 import com.inventra.api.core.domain.profile.Profile;
 import com.inventra.api.core.domain.user.User;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProfileRepository;
 import com.inventra.api.infrastructure.repository.UserRepository;
@@ -31,16 +33,16 @@ public class UserService implements UserUseCase {
     @Override
     public User create(CreateUserRequest request) {
         if (repository.existsByEmail(request.email())) {
-            throw new RuntimeException("Já existe um usuário com esse e-mail.");
+            throw new BusinessRuleException("Já existe um usuário com esse e-mail.");
         }
 
         Profile profile = profileRepository.findById(request.profileId())
-            .orElseThrow(() -> new RuntimeException("Perfil não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado."));
 
         Kitchen kitchen = null;
         if (request.kitchenId() != null) {
             kitchen = kitchenRepository.findById(request.kitchenId())
-                .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
         }
 
         User user = User.builder()
@@ -60,13 +62,13 @@ public class UserService implements UserUseCase {
     @Override
     public User findById(UUID id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
     }
 
     @Override
     public User findByEmail(String email) {
         return repository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
     }
 
     @Override
@@ -77,7 +79,7 @@ public class UserService implements UserUseCase {
     @Override
     public User update(UUID id, UpdateUserRequest request) {
         User currentUser = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         if (request.name() != null) {
             currentUser.setName(request.name());
@@ -87,12 +89,12 @@ public class UserService implements UserUseCase {
         }
         if (request.kitchenId() != null) {
             Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
-                .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
             currentUser.setKitchen(kitchen);
         }
         if (request.profileId() != null) {
             Profile profile = profileRepository.findById(request.profileId())
-                .orElseThrow(() -> new RuntimeException("Perfil não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado."));
             currentUser.setProfile(profile);
         }
 
@@ -102,10 +104,10 @@ public class UserService implements UserUseCase {
     @Override
     public void changePassword(UUID id, ChangePasswordRequest request) {
         User user = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Senha atual incorreta.");
+            throw new BusinessRuleException("Senha atual incorreta.");
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
@@ -115,7 +117,7 @@ public class UserService implements UserUseCase {
     @Override
     public void activate(UUID id) {
         User user = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
         user.setActive(true);
         repository.save(user);
     }
@@ -123,7 +125,7 @@ public class UserService implements UserUseCase {
     @Override
     public void deactivate(UUID id) {
         User user = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
         user.setActive(false);
         repository.save(user);
     }
@@ -131,7 +133,7 @@ public class UserService implements UserUseCase {
     @Override
     public void registerLogin(UUID id) {
         User user = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
         user.setLastLogin(LocalDateTime.now());
         repository.save(user);
     }

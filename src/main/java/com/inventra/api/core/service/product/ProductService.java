@@ -20,6 +20,8 @@ import com.inventra.api.core.domain.product.ProductSupplier;
 import com.inventra.api.core.domain.product.ProductSupplierId;
 import com.inventra.api.core.domain.supplier.Supplier;
 import com.inventra.api.core.domain.unit.Unit;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.CategoryRepository;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProductKitchenParameterRepository;
@@ -45,16 +47,16 @@ public class ProductService implements ProductUseCase {
     @Override
     public Product create(CreateProductRequest request) {
         if (request.barcode() != null && repository.existsByBarcode(request.barcode())) {
-            throw new RuntimeException("Já existe um produto com esse código de barras.");
+            throw new BusinessRuleException("Já existe um produto com esse código de barras.");
         }
 
         Unit unit = unitRepository.findById(request.unitId())
-            .orElseThrow(() -> new RuntimeException("Unidade de medida não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Unidade de medida não encontrada."));
 
         Category category = null;
         if (request.categoryId() != null) {
             category = categoryRepository.findById(request.categoryId())
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
         }
 
         Product product = Product.builder()
@@ -73,7 +75,7 @@ public class ProductService implements ProductUseCase {
     @Override
     public Product findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Produto não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado."));
     }
 
     @Override
@@ -93,17 +95,17 @@ public class ProductService implements ProductUseCase {
         }
         if (request.categoryId() != null) {
             Category category = categoryRepository.findById(request.categoryId())
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
             product.setCategory(category);
         }
         if (request.unitId() != null) {
             Unit unit = unitRepository.findById(request.unitId())
-                .orElseThrow(() -> new RuntimeException("Unidade de medida não encontrada."));
+                .orElseThrow(() -> new ResourceNotFoundException("Unidade de medida não encontrada."));
             product.setUnit(unit);
         }
         if (request.barcode() != null && !request.barcode().equals(product.getBarcode())) {
             if (repository.existsByBarcode(request.barcode())) {
-                throw new RuntimeException("Já existe um produto com esse código de barras.");
+                throw new BusinessRuleException("Já existe um produto com esse código de barras.");
             }
             product.setBarcode(request.barcode());
         }
@@ -132,7 +134,7 @@ public class ProductService implements ProductUseCase {
     public void linkSupplier(Integer productId, LinkSupplierRequest request) {
         Product product = findById(productId);
         Supplier supplier = supplierRepository.findById(request.supplierId())
-            .orElseThrow(() -> new RuntimeException("Fornecedor não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Fornecedor não encontrado."));
 
         ProductSupplier link = ProductSupplier.builder()
             .id(new ProductSupplierId(productId, supplier.getId()))
@@ -150,7 +152,7 @@ public class ProductService implements ProductUseCase {
     public void setKitchenParameters(Integer productId, SetKitchenParametersRequest request) {
         Product product = findById(productId);
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
-            .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
 
         ProductKitchenParameter parameter = ProductKitchenParameter.builder()
             .id(new ProductKitchenParameterId(productId, kitchen.getId()))

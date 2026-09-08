@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.inventra.api.core.domain.category.Category;
 import com.inventra.api.core.service.category.model.request.CreateCategoryRequest;
 import com.inventra.api.core.service.category.model.request.UpdateCategoryRequest;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.CategoryRepository;
 import com.inventra.api.infrastructure.repository.ProductRepository;
 
@@ -22,7 +24,7 @@ public class CategoryService implements CategoryUseCase {
     @Override
     public Category create(CreateCategoryRequest request) {
         if (repository.existsByName(request.name())) {
-            throw new RuntimeException("Já existe uma categoria com esse nome.");
+            throw new BusinessRuleException("Já existe uma categoria com esse nome.");
         }
 
         Category category = Category.builder()
@@ -36,7 +38,7 @@ public class CategoryService implements CategoryUseCase {
     @Override
     public Category findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Categoria não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada."));
     }
 
     @Override
@@ -63,7 +65,7 @@ public class CategoryService implements CategoryUseCase {
         Category category = findById(id);
 
         if (productRepository.existsByCategoryId(id)) {
-            throw new RuntimeException("Não é possível excluir: existem produtos vinculados a essa categoria.");
+            throw new BusinessRuleException("Não é possível excluir: existem produtos vinculados a essa categoria.");
         }
 
         repository.delete(category);
