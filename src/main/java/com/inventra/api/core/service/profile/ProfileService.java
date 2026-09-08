@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.inventra.api.core.domain.profile.Profile;
 import com.inventra.api.core.service.profile.model.request.CreateProfileRequest;
 import com.inventra.api.core.service.profile.model.request.UpdateProfileRequest;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.ProfileRepository;
 import com.inventra.api.infrastructure.repository.UserRepository;
 
@@ -22,7 +24,7 @@ public class ProfileService implements ProfileUseCase {
     @Override
     public Profile create(CreateProfileRequest request) {
         if (repository.existsByAccessType(request.accessType())) {
-            throw new RuntimeException("Já existe um perfil com esse tipo de acesso.");
+            throw new BusinessRuleException("Já existe um perfil com esse tipo de acesso.");
         }
 
         Profile profile = Profile.builder()
@@ -36,7 +38,7 @@ public class ProfileService implements ProfileUseCase {
     @Override
     public Profile findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Perfil não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Perfil não encontrado."));
     }
 
     @Override
@@ -63,7 +65,7 @@ public class ProfileService implements ProfileUseCase {
         Profile profile = findById(id);
 
         if (userRepository.existsByProfileId(id)) {
-            throw new RuntimeException("Não é possível excluir: existem usuários vinculados a esse perfil.");
+            throw new BusinessRuleException("Não é possível excluir: existem usuários vinculados a esse perfil.");
         }
 
         repository.delete(profile);

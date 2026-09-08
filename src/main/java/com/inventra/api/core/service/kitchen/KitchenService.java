@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.inventra.api.core.service.kitchen.model.request.CreateKitchenRequest;
 import com.inventra.api.core.service.kitchen.model.request.UpdateKitchenRequest;
 import com.inventra.api.core.domain.kitchen.Kitchen;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,7 @@ public class KitchenService implements KitchenUseCase {
     @Override
     public Kitchen create(CreateKitchenRequest request) {
         if (repository.existsByCode(request.code())) {
-            throw new RuntimeException("Já existe uma cozinha com esse código.");
+            throw new BusinessRuleException("Já existe uma cozinha com esse código.");
         }
 
         Kitchen kitchen = Kitchen.builder()
@@ -36,13 +38,13 @@ public class KitchenService implements KitchenUseCase {
     @Override
     public Kitchen findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
     }
 
     @Override
     public Kitchen findByCode(String code) {
         return repository.findByCode(code)
-            .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
     }
 
     @Override

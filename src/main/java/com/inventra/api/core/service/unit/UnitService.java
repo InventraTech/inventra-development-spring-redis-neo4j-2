@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.inventra.api.core.domain.unit.Unit;
 import com.inventra.api.core.service.unit.model.request.CreateUnitRequest;
 import com.inventra.api.core.service.unit.model.request.UpdateUnitRequest;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.ProductRepository;
 import com.inventra.api.infrastructure.repository.UnitRepository;
 
@@ -22,7 +24,7 @@ public class UnitService implements UnitUseCase {
     @Override
     public Unit create(CreateUnitRequest request) {
         if (repository.existsBySymbol(request.symbol())) {
-            throw new RuntimeException("Já existe uma unidade de medida com esse símbolo.");
+            throw new BusinessRuleException("Já existe uma unidade de medida com esse símbolo.");
         }
 
         Unit unit = Unit.builder()
@@ -36,7 +38,7 @@ public class UnitService implements UnitUseCase {
     @Override
     public Unit findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Unidade de medida não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Unidade de medida não encontrada."));
     }
 
     @Override
@@ -63,7 +65,7 @@ public class UnitService implements UnitUseCase {
         Unit unit = findById(id);
 
         if (productRepository.existsByUnitId(id)) {
-            throw new RuntimeException("Não é possível excluir: existem produtos vinculados a essa unidade de medida.");
+            throw new BusinessRuleException("Não é possível excluir: existem produtos vinculados a essa unidade de medida.");
         }
 
         repository.delete(unit);

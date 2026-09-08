@@ -16,6 +16,8 @@ import com.inventra.api.core.domain.product.ProductKitchenParameter;
 import com.inventra.api.core.domain.stock.StockBatch;
 import com.inventra.api.core.domain.stock.enums.StockBatchStatus;
 import com.inventra.api.core.domain.supplier.Supplier;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProductKitchenParameterRepository;
 import com.inventra.api.infrastructure.repository.ProductRepository;
@@ -37,14 +39,14 @@ public class    StockBatchService implements StockBatchUseCase {
     @Override
     public StockBatch registerEntry(RegisterStockEntryRequest request) {
         Product product = productRepository.findById(request.productId())
-            .orElseThrow(() -> new RuntimeException("Produto não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado."));
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
-            .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
 
         Supplier supplier = null;
         if (request.supplierId() != null) {
             supplier = supplierRepository.findById(request.supplierId())
-                .orElseThrow(() -> new RuntimeException("Fornecedor não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Fornecedor não encontrado."));
         }
 
         StockBatch batch = StockBatch.builder()
@@ -67,10 +69,10 @@ public class    StockBatchService implements StockBatchUseCase {
     @Override
     public StockBatch consume(Integer batchId, BigDecimal quantity) {
         StockBatch batch = repository.findById(batchId)
-            .orElseThrow(() -> new RuntimeException("Lote não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Lote não encontrado."));
 
         if (quantity.compareTo(batch.getCurrentQuantity()) > 0) {
-            throw new RuntimeException("Quantidade solicitada maior que o saldo do lote.");
+            throw new BusinessRuleException("Quantidade solicitada maior que o saldo do lote.");
         }
 
         batch.setCurrentQuantity(batch.getCurrentQuantity().subtract(quantity));
@@ -105,14 +107,14 @@ public class    StockBatchService implements StockBatchUseCase {
         }
 
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-            throw new RuntimeException("Estoque insuficiente para atender a quantidade solicitada.");
+            throw new BusinessRuleException("Estoque insuficiente para atender a quantidade solicitada.");
         }
     }
 
     @Override
     public StockBatch adjust(Integer batchId, BigDecimal newQuantity) {
         StockBatch batch = repository.findById(batchId)
-            .orElseThrow(() -> new RuntimeException("Lote não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Lote não encontrado."));
 
         batch.setCurrentQuantity(newQuantity);
         if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {

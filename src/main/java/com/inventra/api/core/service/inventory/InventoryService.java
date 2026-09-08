@@ -16,6 +16,8 @@ import com.inventra.api.core.domain.user.User;
 import com.inventra.api.core.service.inventory.model.request.OpenInventoryRequest;
 import com.inventra.api.core.service.inventory.model.request.RegisterInventoryCountRequest;
 import com.inventra.api.core.service.stockbatch.StockBatchUseCase;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.InventoryCountRepository;
 import com.inventra.api.infrastructure.repository.InventoryRepository;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
@@ -38,13 +40,13 @@ public class InventoryService implements InventoryUseCase {
     @Override
     public Inventory open(OpenInventoryRequest request) {
         if (repository.existsByKitchenIdAndStatus(request.kitchenId(), InventoryStatus.OPEN)) {
-            throw new RuntimeException("Já existe um inventário em aberto para essa cozinha.");
+            throw new BusinessRuleException("Já existe um inventário em aberto para essa cozinha.");
         }
 
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
-            .orElseThrow(() -> new RuntimeException("Cozinha não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
         User responsible = userRepository.findById(request.responsibleId())
-            .orElseThrow(() -> new RuntimeException("Usuário responsável não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário responsável não encontrado."));
 
         Inventory inventory = Inventory.builder()
             .kitchen(kitchen)
@@ -59,7 +61,7 @@ public class InventoryService implements InventoryUseCase {
     @Override
     public Inventory findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Inventário não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Inventário não encontrado."));
     }
 
     @Override
@@ -72,7 +74,7 @@ public class InventoryService implements InventoryUseCase {
         Inventory inventory = findOpenInventory(inventoryId);
 
         StockBatch batch = stockBatchRepository.findById(request.batchId())
-            .orElseThrow(() -> new RuntimeException("Lote não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Lote não encontrado."));
 
         BigDecimal registeredQuantity = batch.getCurrentQuantity();
         BigDecimal divergence = request.physicalQuantity().subtract(registeredQuantity);
@@ -94,9 +96,9 @@ public class InventoryService implements InventoryUseCase {
         Inventory inventory = findOpenInventory(inventoryId);
 
         InventoryCount count = countRepository.findById(countId)
-            .orElseThrow(() -> new RuntimeException("Contagem não encontrada."));
+            .orElseThrow(() -> new ResourceNotFoundException("Contagem não encontrada."));
         if (!count.getInventory().getId().equals(inventoryId)) {
-            throw new RuntimeException("Contagem não pertence a esse inventário.");
+            throw new BusinessRuleException("Contagem não pertence a esse inventário.");
         }
 
         countRepository.delete(count);
@@ -115,7 +117,7 @@ public class InventoryService implements InventoryUseCase {
 
         List<InventoryCount> counts = countRepository.findByInventoryId(inventoryId);
         if (counts.isEmpty()) {
-            throw new RuntimeException("Inventário sem contagens não pode ser fechado.");
+            throw new BusinessRuleException("Inventário sem contagens não pode ser fechado.");
         }
 
         for (InventoryCount count : counts) {
@@ -142,7 +144,7 @@ public class InventoryService implements InventoryUseCase {
         Inventory inventory = findById(inventoryId);
 
         if (inventory.getStatus() != InventoryStatus.OPEN) {
-            throw new RuntimeException("Inventário não está mais aberto.");
+            throw new BusinessRuleException("Inventário não está mais aberto.");
         }
 
         return inventory;

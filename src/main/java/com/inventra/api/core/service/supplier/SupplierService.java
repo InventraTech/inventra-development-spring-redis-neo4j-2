@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.inventra.api.core.domain.supplier.Supplier;
 import com.inventra.api.core.service.supplier.model.request.CreateSupplierRequest;
 import com.inventra.api.core.service.supplier.model.request.UpdateSupplierRequest;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.SupplierRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,7 @@ public class SupplierService implements SupplierUseCase {
     @Override
     public Supplier create(CreateSupplierRequest request) {
         if (repository.existsByCnpj(request.cnpj())) {
-            throw new RuntimeException("Já existe um fornecedor com esse CNPJ.");
+            throw new BusinessRuleException("Já existe um fornecedor com esse CNPJ.");
         }
 
         Supplier supplier = Supplier.builder()
@@ -38,7 +40,7 @@ public class SupplierService implements SupplierUseCase {
     @Override
     public Supplier findById(Integer id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Fornecedor não encontrado."));
+            .orElseThrow(() -> new ResourceNotFoundException("Fornecedor não encontrado."));
     }
 
     @Override
