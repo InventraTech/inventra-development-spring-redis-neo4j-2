@@ -38,9 +38,6 @@ public class User {
     @ToString.Exclude
     private String passwordHash;
 
-    @Column(name = "role", length = 80)
-    private String role;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_kitchen")
     @ToString.Exclude

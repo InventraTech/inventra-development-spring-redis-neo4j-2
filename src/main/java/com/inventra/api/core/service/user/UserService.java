@@ -50,7 +50,6 @@ public class UserService implements UserUseCase {
             .name(request.name())
             .email(request.email())
             .passwordHash(passwordEncoder.encode(request.password()))
-            .role(request.role())
             .kitchen(kitchen)
             .profile(profile)
             .active(true)
@@ -83,9 +82,6 @@ public class UserService implements UserUseCase {
 
         if (request.name() != null) {
             currentUser.setName(request.name());
-        }
-        if (request.role() != null) {
-            currentUser.setRole(request.role());
         }
         if (request.kitchenId() != null) {
             Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
