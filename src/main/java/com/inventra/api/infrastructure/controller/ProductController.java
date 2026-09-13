@@ -1,6 +1,7 @@
 package com.inventra.api.infrastructure.controller;
 
 import java.net.URI;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,7 +14,9 @@ import com.inventra.api.core.service.product.model.request.CreateProductRequest;
 import com.inventra.api.core.service.product.model.request.LinkSupplierRequest;
 import com.inventra.api.core.service.product.model.request.SetKitchenParametersRequest;
 import com.inventra.api.core.service.product.model.request.UpdateProductRequest;
+import com.inventra.api.core.service.product.model.response.ProductKitchenParameterResponse;
 import com.inventra.api.core.service.product.model.response.ProductResponse;
+import com.inventra.api.core.service.product.model.response.ProductSupplierResponse;
 import com.inventra.api.infrastructure.client.openfoodfacts.OpenFoodFactsClient;
 import com.inventra.api.infrastructure.client.openfoodfacts.model.OpenFoodFactsProduct;
 
@@ -82,10 +85,20 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{id}/suppliers")
+    public ResponseEntity<List<ProductSupplierResponse>> listSuppliers(@PathVariable Integer id) {
+        return ResponseEntity.ok(useCase.listSuppliers(id));
+    }
+
     @PutMapping("/{id}/kitchen-parameters")
     public ResponseEntity<Void> setKitchenParameters(@PathVariable Integer id,
                                                       @Valid @RequestBody SetKitchenParametersRequest request) {
         useCase.setKitchenParameters(id, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/kitchen-parameters")
+    public ResponseEntity<List<ProductKitchenParameterResponse>> listKitchenParameters(@PathVariable Integer id) {
+        return ResponseEntity.ok(useCase.listKitchenParameters(id));
     }
 }

@@ -14,6 +14,7 @@ import com.inventra.api.infrastructure.repository.AlertRepository;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProductRepository;
 import com.inventra.api.infrastructure.repository.StockBatchRepository;
+import com.inventra.api.infrastructure.security.KitchenAccessGuard;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,9 +26,11 @@ public class AlertService implements AlertUseCase {
     private final KitchenRepository kitchenRepository;
     private final ProductRepository productRepository;
     private final StockBatchRepository stockBatchRepository;
+    private final KitchenAccessGuard accessGuard;
 
     @Override
     public Alert create(CreateAlertRequest request) {
+        accessGuard.assertAccess(request.kitchenId());
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
             .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
 
@@ -58,17 +61,21 @@ public class AlertService implements AlertUseCase {
 
     @Override
     public Alert findById(Integer id) {
-        return repository.findById(id)
+        Alert alert = repository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Alerta não encontrado."));
+        accessGuard.assertAccess(alert.getKitchen().getId());
+        return alert;
     }
 
     @Override
     public List<Alert> listByKitchen(Integer kitchenId) {
+        accessGuard.assertAccess(kitchenId);
         return repository.findByKitchenId(kitchenId);
     }
 
     @Override
     public List<Alert> listUnreadByKitchen(Integer kitchenId) {
+        accessGuard.assertAccess(kitchenId);
         return repository.findByKitchenIdAndReadFalse(kitchenId);
     }
 

@@ -14,6 +14,7 @@ import com.inventra.api.core.service.requisition.model.request.AddRequisitionIte
 import com.inventra.api.core.service.requisition.model.request.ApproveRequisitionRequest;
 import com.inventra.api.core.service.requisition.model.request.CreateRequisitionRequest;
 import com.inventra.api.core.service.requisition.model.request.RejectRequisitionRequest;
+import com.inventra.api.core.service.requisition.model.response.RequisitionItemResponse;
 import com.inventra.api.core.service.requisition.model.response.RequisitionResponse;
 
 import jakarta.validation.Valid;
@@ -65,6 +66,14 @@ public class RequisitionController {
     public ResponseEntity<RequisitionResponse> removeItem(@PathVariable Integer id, @PathVariable Integer itemId) {
         Requisition updated = useCase.removeItem(id, itemId);
         return ResponseEntity.ok(RequisitionResponse.fromEntity(updated));
+    }
+
+    @GetMapping("/{id}/items")
+    public ResponseEntity<List<RequisitionItemResponse>> listItems(@PathVariable Integer id) {
+        List<RequisitionItemResponse> responses = useCase.listItems(id).stream()
+                .map(RequisitionItemResponse::fromEntity)
+                .toList();
+        return ResponseEntity.ok(responses);
     }
 
     @PatchMapping("/{id}/submit")

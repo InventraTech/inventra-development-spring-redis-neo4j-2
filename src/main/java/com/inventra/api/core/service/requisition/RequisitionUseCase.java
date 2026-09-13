@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.inventra.api.core.service.requisition.model.request.AddRequisitionItemRequest;
 import com.inventra.api.core.service.requisition.model.request.CreateRequisitionRequest;
 import com.inventra.api.core.domain.requisition.Requisition;
+import com.inventra.api.core.domain.requisition.RequisitionItem;
 import com.inventra.api.core.domain.requisition.enums.RequisitionStatus;
 
 public interface RequisitionUseCase {
@@ -15,6 +16,8 @@ public interface RequisitionUseCase {
     Requisition addItem(Integer requisitionId, AddRequisitionItemRequest request);
 
     Requisition removeItem(Integer requisitionId, Integer itemId);
+
+    List<RequisitionItem> listItems(Integer requisitionId);
 
     Requisition submit(Integer requisitionId);
 

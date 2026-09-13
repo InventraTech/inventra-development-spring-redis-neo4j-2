@@ -1,5 +1,6 @@
 package com.inventra.api.core.service.requisition;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -12,6 +13,8 @@ import com.inventra.api.core.service.requisition.model.request.CreateRequisition
 import com.inventra.api.core.service.stockbatch.StockBatchUseCase;
 import com.inventra.api.core.domain.kitchen.Kitchen;
 import com.inventra.api.core.domain.product.Product;
+import com.inventra.api.core.domain.product.ProductSupplier;
+import com.inventra.api.core.domain.product.ProductSupplierId;
 import com.inventra.api.core.domain.requisition.Requisition;
 import com.inventra.api.core.domain.requisition.RequisitionItem;
 import com.inventra.api.core.domain.requisition.enums.RequisitionStatus;
@@ -21,10 +24,12 @@ import com.inventra.api.infrastructure.exception.BusinessRuleException;
 import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProductRepository;
+import com.inventra.api.infrastructure.repository.ProductSupplierRepository;
 import com.inventra.api.infrastructure.repository.RequisitionItemRepository;
 import com.inventra.api.infrastructure.repository.RequisitionRepository;
 import com.inventra.api.infrastructure.repository.SupplierRepository;
 import com.inventra.api.infrastructure.repository.UserRepository;
+import com.inventra.api.infrastructure.security.KitchenAccessGuard;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,10 +43,13 @@ public class RequisitionService implements RequisitionUseCase {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final SupplierRepository supplierRepository;
+    private final ProductSupplierRepository productSupplierRepository;
     private final StockBatchUseCase stockBatchUseCase;
+    private final KitchenAccessGuard accessGuard;
 
     @Override
     public Requisition create(CreateRequisitionRequest request) {
+        accessGuard.assertAccess(request.kitchenId());
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
             .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
         User requester = userRepository.findById(request.requesterId())
@@ -71,12 +79,16 @@ public class RequisitionService implements RequisitionUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("Fornecedor não encontrado."));
         }
 
+        BigDecimal estimatedPrice = request.estimatedPrice() != null
+            ? request.estimatedPrice()
+            : suggestReferencePrice(request.productId(), request.suggestedSupplierId());
+
         RequisitionItem item = RequisitionItem.builder()
             .requisition(requisition)
             .product(product)
             .suggestedSupplier(suggestedSupplier)
             .quantity(request.quantity())
-            .estimatedPrice(request.estimatedPrice())
+            .estimatedPrice(estimatedPrice)
             .note(request.note())
             .build();
 
@@ -144,22 +156,49 @@ public class RequisitionService implements RequisitionUseCase {
 
     @Override
     public List<Requisition> listByKitchen(Integer kitchenId) {
+        accessGuard.assertAccess(kitchenId);
         return repository.findByKitchenId(kitchenId);
     }
 
     @Override
     public List<Requisition> listByStatus(RequisitionStatus status) {
-        return repository.findByStatus(status);
+        return repository.findByStatus(status).stream()
+            .filter(requisition -> accessGuard.hasAccess(requisition.getKitchen().getId()))
+            .toList();
     }
 
     @Override
     public List<Requisition> listByRequester(UUID requesterId) {
-        return repository.findByRequesterId(requesterId);
+        return repository.findByRequesterId(requesterId).stream()
+            .filter(requisition -> accessGuard.hasAccess(requisition.getKitchen().getId()))
+            .toList();
+    }
+
+    @Override
+    public List<RequisitionItem> listItems(Integer requisitionId) {
+        loadRequisition(requisitionId);
+        return itemRepository.findByRequisitionId(requisitionId);
+    }
+
+    // Sem preço informado: usa o referencePrice já vinculado (linkSupplier) como sugestão, se existir.
+    private BigDecimal suggestReferencePrice(Integer productId, Integer supplierId) {
+        if (supplierId == null) {
+            return null;
+        }
+        return productSupplierRepository.findById(new ProductSupplierId(productId, supplierId))
+            .map(ProductSupplier::getReferencePrice)
+            .orElse(null);
+    }
+
+    private Requisition loadRequisition(Integer requisitionId) {
+        Requisition requisition = repository.findById(requisitionId)
+            .orElseThrow(() -> new ResourceNotFoundException("Requisição não encontrada."));
+        accessGuard.assertAccess(requisition.getKitchen().getId());
+        return requisition;
     }
 
     private Requisition findEditableRequisition(Integer requisitionId) {
-        Requisition requisition = repository.findById(requisitionId)
-            .orElseThrow(() -> new ResourceNotFoundException("Requisição não encontrada."));
+        Requisition requisition = loadRequisition(requisitionId);
 
         if (requisition.getStatus() != RequisitionStatus.UNDER_REVIEW) {
             throw new BusinessRuleException("Requisição não está mais em análise.");

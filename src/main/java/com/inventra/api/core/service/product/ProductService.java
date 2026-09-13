@@ -1,6 +1,7 @@
 package com.inventra.api.core.service.product;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Objects;
 
 import org.springframework.data.domain.Page;
@@ -11,6 +12,8 @@ import com.inventra.api.core.service.product.model.request.CreateProductRequest;
 import com.inventra.api.core.service.product.model.request.LinkSupplierRequest;
 import com.inventra.api.core.service.product.model.request.SetKitchenParametersRequest;
 import com.inventra.api.core.service.product.model.request.UpdateProductRequest;
+import com.inventra.api.core.service.product.model.response.ProductKitchenParameterResponse;
+import com.inventra.api.core.service.product.model.response.ProductSupplierResponse;
 import com.inventra.api.core.domain.category.Category;
 import com.inventra.api.core.domain.kitchen.Kitchen;
 import com.inventra.api.core.domain.product.Product;
@@ -27,8 +30,10 @@ import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.ProductKitchenParameterRepository;
 import com.inventra.api.infrastructure.repository.ProductRepository;
 import com.inventra.api.infrastructure.repository.ProductSupplierRepository;
+import com.inventra.api.infrastructure.repository.StockBatchRepository;
 import com.inventra.api.infrastructure.repository.SupplierRepository;
 import com.inventra.api.infrastructure.repository.UnitRepository;
+import com.inventra.api.infrastructure.security.KitchenAccessGuard;
 
 import lombok.RequiredArgsConstructor;
 
@@ -43,6 +48,8 @@ public class ProductService implements ProductUseCase {
     private final ProductSupplierRepository productSupplierRepository;
     private final ProductKitchenParameterRepository productKitchenParameterRepository;
     private final KitchenRepository kitchenRepository;
+    private final StockBatchRepository stockBatchRepository;
+    private final KitchenAccessGuard accessGuard;
 
     @Override
     public Product create(CreateProductRequest request) {
@@ -150,6 +157,7 @@ public class ProductService implements ProductUseCase {
 
     @Override
     public void setKitchenParameters(Integer productId, SetKitchenParametersRequest request) {
+        accessGuard.assertAccess(request.kitchenId());
         Product product = findById(productId);
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
             .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
@@ -164,5 +172,23 @@ public class ProductService implements ProductUseCase {
             .build();
 
         productKitchenParameterRepository.save(parameter);
+    }
+
+    @Override
+    public List<ProductSupplierResponse> listSuppliers(Integer productId) {
+        return productSupplierRepository.findByProduct_Id(productId).stream()
+            .map(ProductSupplierResponse::fromEntity)
+            .toList();
+    }
+
+    @Override
+    public List<ProductKitchenParameterResponse> listKitchenParameters(Integer productId) {
+        return productKitchenParameterRepository.findByProduct_Id(productId).stream()
+            .filter(parameter -> accessGuard.hasAccess(parameter.getKitchen().getId()))
+            .map(parameter -> {
+                BigDecimal current = stockBatchRepository.sumActiveQuantity(productId, parameter.getKitchen().getId());
+                return ProductKitchenParameterResponse.from(parameter, current);
+            })
+            .toList();
     }
 }
