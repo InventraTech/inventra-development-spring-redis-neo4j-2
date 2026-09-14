@@ -23,6 +23,7 @@ import com.inventra.api.infrastructure.repository.ProductKitchenParameterReposit
 import com.inventra.api.infrastructure.repository.ProductRepository;
 import com.inventra.api.infrastructure.repository.StockBatchRepository;
 import com.inventra.api.infrastructure.repository.SupplierRepository;
+import com.inventra.api.infrastructure.security.KitchenAccessGuard;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,9 +36,11 @@ public class    StockBatchService implements StockBatchUseCase {
     private final KitchenRepository kitchenRepository;
     private final SupplierRepository supplierRepository;
     private final ProductKitchenParameterRepository productKitchenParameterRepository;
+    private final KitchenAccessGuard accessGuard;
 
     @Override
     public StockBatch registerEntry(RegisterStockEntryRequest request) {
+        accessGuard.assertAccess(request.kitchenId());
         Product product = productRepository.findById(request.productId())
             .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado."));
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
@@ -70,6 +73,7 @@ public class    StockBatchService implements StockBatchUseCase {
     public StockBatch consume(Integer batchId, BigDecimal quantity) {
         StockBatch batch = repository.findById(batchId)
             .orElseThrow(() -> new ResourceNotFoundException("Lote não encontrado."));
+        accessGuard.assertAccess(batch.getKitchen().getId());
 
         if (quantity.compareTo(batch.getCurrentQuantity()) > 0) {
             throw new BusinessRuleException("Quantidade solicitada maior que o saldo do lote.");
@@ -86,6 +90,7 @@ public class    StockBatchService implements StockBatchUseCase {
     @Override
     @Transactional
     public void consumeForProduct(Integer kitchenId, Integer productId, BigDecimal quantity) {
+        accessGuard.assertAccess(kitchenId);
         List<StockBatch> batches = repository
             .findByKitchenIdAndProductIdAndStatusOrderByExpirationDateAscEntryDateAsc(
                 kitchenId, productId, StockBatchStatus.ACTIVE);
@@ -115,6 +120,7 @@ public class    StockBatchService implements StockBatchUseCase {
     public StockBatch adjust(Integer batchId, BigDecimal newQuantity) {
         StockBatch batch = repository.findById(batchId)
             .orElseThrow(() -> new ResourceNotFoundException("Lote não encontrado."));
+        accessGuard.assertAccess(batch.getKitchen().getId());
 
         batch.setCurrentQuantity(newQuantity);
         if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
@@ -128,6 +134,7 @@ public class    StockBatchService implements StockBatchUseCase {
 
     @Override
     public List<StockBatch> findExpiringSoon(Integer kitchenId, int days) {
+        accessGuard.assertAccess(kitchenId);
         LocalDate today = LocalDate.now();
         return repository.findByKitchenIdAndStatusAndExpirationDateBetween(
             kitchenId, StockBatchStatus.ACTIVE, today, today.plusDays(days));
@@ -138,6 +145,10 @@ public class    StockBatchService implements StockBatchUseCase {
         List<LowStockAlertResponse> alerts = new ArrayList<>();
 
         for (ProductKitchenParameter parameter : productKitchenParameterRepository.findAll()) {
+            if (!accessGuard.hasAccess(parameter.getKitchen().getId())) {
+                continue;
+            }
+
             BigDecimal current = repository.sumActiveQuantity(
                 parameter.getProduct().getId(), parameter.getKitchen().getId());
 
@@ -152,11 +163,14 @@ public class    StockBatchService implements StockBatchUseCase {
 
     @Override
     public List<StockBatch> listByKitchen(Integer kitchenId) {
+        accessGuard.assertAccess(kitchenId);
         return repository.findByKitchenId(kitchenId);
     }
 
     @Override
     public List<StockBatch> listByProduct(Integer productId) {
-        return repository.findByProductId(productId);
+        return repository.findByProductId(productId).stream()
+            .filter(batch -> accessGuard.hasAccess(batch.getKitchen().getId()))
+            .toList();
     }
 }

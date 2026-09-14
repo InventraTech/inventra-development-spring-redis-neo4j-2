@@ -1,6 +1,5 @@
 package com.inventra.api.infrastructure.exception;
 
-import java.time.Instant;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -8,6 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -26,6 +28,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ProblemDetail handleBusinessRule(BusinessRuleException ex) {
         return buildProblem(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ProblemDetail handleDisabled(DisabledException ex) {
+        return buildProblem(HttpStatus.FORBIDDEN, "Forbidden", "Conta desativada. Contate um administrador.");
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail handleAuthenticationFailure(AuthenticationException ex) {
+        return buildProblem(HttpStatus.UNAUTHORIZED, "Unauthorized", "E-mail ou senha inválidos.");
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        return buildProblem(HttpStatus.FORBIDDEN, "Forbidden", "Você não tem permissão para acessar este recurso.");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -62,10 +79,7 @@ public class GlobalExceptionHandler {
     }
 
     private ProblemDetail buildProblem(HttpStatus status, String title, String detail) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
-        problem.setTitle(title);
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return ProblemDetailFactory.build(status, title, detail);
     }
 
     private record FieldViolation(String field, String message) {

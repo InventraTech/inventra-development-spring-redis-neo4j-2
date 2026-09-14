@@ -23,6 +23,7 @@ import com.inventra.api.infrastructure.repository.InventoryRepository;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
 import com.inventra.api.infrastructure.repository.StockBatchRepository;
 import com.inventra.api.infrastructure.repository.UserRepository;
+import com.inventra.api.infrastructure.security.KitchenAccessGuard;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,9 +37,11 @@ public class InventoryService implements InventoryUseCase {
     private final UserRepository userRepository;
     private final StockBatchRepository stockBatchRepository;
     private final StockBatchUseCase stockBatchUseCase;
+    private final KitchenAccessGuard accessGuard;
 
     @Override
     public Inventory open(OpenInventoryRequest request) {
+        accessGuard.assertAccess(request.kitchenId());
         if (repository.existsByKitchenIdAndStatus(request.kitchenId(), InventoryStatus.OPEN)) {
             throw new BusinessRuleException("Já existe um inventário em aberto para essa cozinha.");
         }
@@ -60,12 +63,15 @@ public class InventoryService implements InventoryUseCase {
 
     @Override
     public Inventory findById(Integer id) {
-        return repository.findById(id)
+        Inventory inventory = repository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Inventário não encontrado."));
+        accessGuard.assertAccess(inventory.getKitchen().getId());
+        return inventory;
     }
 
     @Override
     public List<Inventory> listByKitchen(Integer kitchenId) {
+        accessGuard.assertAccess(kitchenId);
         return repository.findByKitchenId(kitchenId);
     }
 
@@ -107,6 +113,7 @@ public class InventoryService implements InventoryUseCase {
 
     @Override
     public List<InventoryCount> listCounts(Integer inventoryId) {
+        findById(inventoryId);
         return countRepository.findByInventoryId(inventoryId);
     }
 
@@ -142,6 +149,7 @@ public class InventoryService implements InventoryUseCase {
 
     private Inventory findOpenInventory(Integer inventoryId) {
         Inventory inventory = findById(inventoryId);
+        // findById já chama accessGuard.assertAccess
 
         if (inventory.getStatus() != InventoryStatus.OPEN) {
             throw new BusinessRuleException("Inventário não está mais aberto.");

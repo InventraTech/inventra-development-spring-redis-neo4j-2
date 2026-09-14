@@ -1,5 +1,7 @@
 package com.inventra.api.core.service.product;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -7,6 +9,8 @@ import com.inventra.api.core.service.product.model.request.CreateProductRequest;
 import com.inventra.api.core.service.product.model.request.LinkSupplierRequest;
 import com.inventra.api.core.service.product.model.request.SetKitchenParametersRequest;
 import com.inventra.api.core.service.product.model.request.UpdateProductRequest;
+import com.inventra.api.core.service.product.model.response.ProductKitchenParameterResponse;
+import com.inventra.api.core.service.product.model.response.ProductSupplierResponse;
 import com.inventra.api.core.domain.product.Product;
 
 public interface ProductUseCase {
@@ -27,4 +31,8 @@ public interface ProductUseCase {
     void linkSupplier(Integer productId, LinkSupplierRequest request);
 
     void setKitchenParameters(Integer productId, SetKitchenParametersRequest request);
+
+    List<ProductSupplierResponse> listSuppliers(Integer productId);
+
+    List<ProductKitchenParameterResponse> listKitchenParameters(Integer productId);
 }

@@ -10,6 +10,7 @@ import com.inventra.api.core.domain.kitchen.Kitchen;
 import com.inventra.api.infrastructure.exception.BusinessRuleException;
 import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
+import com.inventra.api.infrastructure.security.KitchenAccessGuard;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class KitchenService implements KitchenUseCase {
 
     private final KitchenRepository repository;
+    private final KitchenAccessGuard accessGuard;
 
     @Override
     public Kitchen create(CreateKitchenRequest request) {
@@ -37,24 +39,32 @@ public class KitchenService implements KitchenUseCase {
 
     @Override
     public Kitchen findById(Integer id) {
-        return repository.findById(id)
+        Kitchen kitchen = repository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
+        accessGuard.assertAccess(kitchen.getId());
+        return kitchen;
     }
 
     @Override
     public Kitchen findByCode(String code) {
-        return repository.findByCode(code)
+        Kitchen kitchen = repository.findByCode(code)
             .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
+        accessGuard.assertAccess(kitchen.getId());
+        return kitchen;
     }
 
     @Override
     public List<Kitchen> listActive() {
-        return repository.findByActiveTrue();
+        return repository.findByActiveTrue().stream()
+            .filter(kitchen -> accessGuard.hasAccess(kitchen.getId()))
+            .toList();
     }
 
     @Override
     public Kitchen update(Integer id, UpdateKitchenRequest request) {
-        Kitchen kitchen = findById(id);
+        accessGuard.assertAccess(id);
+        Kitchen kitchen = repository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
 
         if (request.name() != null) {
             kitchen.setName(request.name());
@@ -68,14 +78,18 @@ public class KitchenService implements KitchenUseCase {
 
     @Override
     public void activate(Integer id) {
-        Kitchen kitchen = findById(id);
+        accessGuard.assertAccess(id);
+        Kitchen kitchen = repository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
         kitchen.setActive(true);
         repository.save(kitchen);
     }
 
     @Override
     public void deactivate(Integer id) {
-        Kitchen kitchen = findById(id);
+        accessGuard.assertAccess(id);
+        Kitchen kitchen = repository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
         kitchen.setActive(false);
         repository.save(kitchen);
     }
