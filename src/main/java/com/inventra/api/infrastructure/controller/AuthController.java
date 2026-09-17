@@ -1,5 +1,6 @@
 package com.inventra.api.infrastructure.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.inventra.api.core.service.auth.AuthUseCase;
 import com.inventra.api.core.service.auth.model.request.LoginRequest;
+import com.inventra.api.core.service.auth.model.request.RegisterRequest;
 import com.inventra.api.core.service.auth.model.response.LoginResponse;
 
 import jakarta.validation.Valid;
@@ -23,5 +25,10 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(useCase.login(request));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(useCase.register(request));
     }
 }
