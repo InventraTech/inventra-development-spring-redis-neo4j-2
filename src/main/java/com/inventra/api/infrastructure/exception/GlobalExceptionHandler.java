@@ -5,17 +5,25 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.client.RestClientException;
 
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -60,6 +68,11 @@ public class GlobalExceptionHandler {
         return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage());
     }
 
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    public ProblemDetail handleMalformedRequest(Exception ex) {
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request", "Conteúdo ou identificador da requisição inválido.");
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         log.warn("Violação de integridade no banco de dados", ex);
@@ -72,8 +85,18 @@ public class GlobalExceptionHandler {
         return buildProblem(HttpStatus.BAD_GATEWAY, "Bad Gateway", "Falha ao consultar um serviço externo.");
     }
 
+    @ExceptionHandler({RedisConnectionFailureException.class, RedisSystemException.class})
+    public ProblemDetail handleRedisUnavailable(RuntimeException ex) {
+        log.warn("Redis indisponível errorType={}", ex.getClass().getSimpleName());
+        return buildProblem(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable",
+                "Serviço de processamento indisponível. Tente novamente em instantes.");
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneric(Exception ex) {
+        if (ex instanceof ErrorResponse errorResponse) {
+            return errorResponse.getBody();
+        }
         log.error("Erro não tratado", ex);
         return buildProblem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Erro interno no servidor.");
     }

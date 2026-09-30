@@ -24,8 +24,8 @@ class RedisConnectionTest {
                             "spring.data.redis.port=" + getEnv("REDIS_PORT"),
                             "spring.data.redis.username=" + getEnv("REDIS_USERNAME"),
                             "spring.data.redis.password=" + getEnv("REDIS_PASSWORD"),
-                            "spring.data.redis.database=0",
-                            "spring.data.redis.ssl.enabled=true",
+                            "spring.data.redis.database=" + System.getenv().getOrDefault("REDIS_DATABASE", "0"),
+                            "spring.data.redis.ssl.enabled=" + System.getenv().getOrDefault("REDIS_SSL", "true"),
                             "spring.data.redis.connect-timeout=10s",
                             "spring.data.redis.timeout=10s"
                     );
