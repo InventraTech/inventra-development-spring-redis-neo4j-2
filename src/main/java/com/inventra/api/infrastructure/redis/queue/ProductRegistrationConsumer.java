@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import com.inventra.api.core.service.productqueue.ProductRegistrationProcessor;
 import com.inventra.api.core.service.productqueue.model.ProductRegistrationJob;
 import com.inventra.api.infrastructure.exception.BusinessRuleException;
+import com.inventra.api.infrastructure.exception.QueueServiceException;
 import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 
 @Component
@@ -74,7 +75,7 @@ public class ProductRegistrationConsumer implements SmartLifecycle {
 
     void process(UUID eventId, String token) {
         ProductRegistrationJob job = queue.find(eventId).orElseThrow(
-                () -> new IllegalStateException("Payload de cadastro não encontrado."));
+                () -> new QueueServiceException("Payload de cadastro não encontrado."));
         ProductRegistrationJob processing = job.processing();
         if (!queue.update(processing, token)) return;
         log.info("Cadastro iniciado eventId={} timestamp={}", eventId, processing.startedAt());
@@ -88,7 +89,7 @@ public class ProductRegistrationConsumer implements SmartLifecycle {
             result = processing.failed(code);
         }
         // Falha de confirmação no Redis não transforma um sucesso no PostgreSQL em DLQ.
-        if (!queue.update(result, token)) throw new IllegalStateException("Confirmação de cadastro não realizada.");
+        if (!queue.update(result, token)) throw new QueueServiceException("Confirmação de cadastro não realizada.");
         log.info("Cadastro finalizado eventId={} status={} errorCode={} timestamp={}",
                 eventId, result.status(), result.errorCode(), result.finishedAt());
     }
