@@ -39,7 +39,11 @@ class JwtServiceTest {
     @Test
     void rejectsTamperedToken() {
         String token = jwtService.generateToken(principal());
-        String tampered = token.substring(0, token.length() - 1) + (token.endsWith("A") ? "B" : "A");
+        // Troca o 1º caractere da assinatura: o último só carrega 4 bits úteis em Base64URL,
+        // então trocá-lo às vezes não altera a assinatura e o token continua válido.
+        int signatureStart = token.lastIndexOf('.') + 1;
+        char first = token.charAt(signatureStart);
+        String tampered = token.substring(0, signatureStart) + (first == 'A' ? 'B' : 'A') + token.substring(signatureStart + 1);
 
         assertThat(jwtService.isValid(tampered)).isFalse();
     }
