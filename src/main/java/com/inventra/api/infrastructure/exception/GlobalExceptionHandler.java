@@ -1,5 +1,6 @@
 package com.inventra.api.infrastructure.exception;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -70,6 +71,20 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleRestClientException(RestClientException ex) {
         log.warn("Falha ao chamar serviço externo", ex);
         return buildProblem(HttpStatus.BAD_GATEWAY, "Bad Gateway", "Falha ao consultar um serviço externo.");
+    }
+
+    @ExceptionHandler(ImageStorageException.class)
+    public ProblemDetail handleImageStorage(ImageStorageException ex) {
+        log.warn("Falha no serviço de imagens", ex);
+        return buildProblem(HttpStatus.BAD_GATEWAY, "Bad Gateway", "Falha ao processar a imagem. Tente novamente.");
+    }
+
+    // Costuma vir de MultipartFile.getBytes() quando o upload foi truncado ou o temp file
+    // ficou inacessível. Do ponto de vista do cliente, a requisição chegou incompleta — 400.
+    @ExceptionHandler(IOException.class)
+    public ProblemDetail handleIO(IOException ex) {
+        log.warn("Falha de I/O ao ler a requisição", ex);
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request", "Falha ao ler o arquivo enviado. Tente novamente.");
     }
 
     @ExceptionHandler(Exception.class)
