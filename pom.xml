@@ -9,9 +9,9 @@
 		<relativePath/>
 	</parent>
 	<groupId>com.inventra</groupId>
-	<artifactId>inventra-api</artifactId>
+	<artifactId>ms-inventra-api</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>inventra-api</name>
+	<name>ms-inventra-api</name>
 	<description>API do sistema Inventra</description>
 
 	<properties>
