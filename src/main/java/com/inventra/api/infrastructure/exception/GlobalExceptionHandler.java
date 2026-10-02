@@ -1,10 +1,12 @@
 package com.inventra.api.infrastructure.exception;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -20,6 +22,7 @@ import org.springframework.web.client.RestClientException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String RAISE_EXCEPTION_SQL_STATE = "P0001";
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleResourceNotFound(ResourceNotFoundException ex) {
@@ -67,6 +70,18 @@ public class GlobalExceptionHandler {
         return buildProblem(HttpStatus.CONFLICT, "Conflict", "A operação viola uma restrição de integridade dos dados.");
     }
 
+    // RAISE EXCEPTION das procedures/triggers (V2__business_rules.sql) chega com SQLState P0001:
+    // é regra de negócio do banco, então devolve 409 com a mensagem da procedure.
+    @ExceptionHandler(DataAccessException.class)
+    public ProblemDetail handleDataAccess(DataAccessException ex) {
+        SQLException sqlException = findSqlException(ex);
+        if (sqlException != null && RAISE_EXCEPTION_SQL_STATE.equals(sqlException.getSQLState())) {
+            return buildProblem(HttpStatus.CONFLICT, "Conflict", raisedMessage(sqlException));
+        }
+        log.error("Erro de acesso ao banco de dados", ex);
+        return buildProblem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Erro interno no servidor.");
+    }
+
     @ExceptionHandler(RestClientException.class)
     public ProblemDetail handleRestClientException(RestClientException ex) {
         log.warn("Falha ao chamar serviço externo", ex);
@@ -95,6 +110,25 @@ public class GlobalExceptionHandler {
 
     private ProblemDetail buildProblem(HttpStatus status, String title, String detail) {
         return ProblemDetailFactory.build(status, title, detail);
+    }
+
+    private static SQLException findSqlException(Throwable ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sqlException) {
+                return sqlException;
+            }
+        }
+        return null;
+    }
+
+    // O driver formata como "ERROR: <mensagem>\n  Where: PL/pgSQL function ..."; só a mensagem interessa ao cliente.
+    private static String raisedMessage(SQLException ex) {
+        String message = ex.getMessage() == null ? "" : ex.getMessage();
+        int lineBreak = message.indexOf('\n');
+        if (lineBreak >= 0) {
+            message = message.substring(0, lineBreak);
+        }
+        return message.replaceFirst("^ERROR:\\s*", "").trim();
     }
 
     private record FieldViolation(String field, String message) {
