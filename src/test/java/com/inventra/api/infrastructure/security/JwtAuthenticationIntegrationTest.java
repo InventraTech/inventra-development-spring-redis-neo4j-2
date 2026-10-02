@@ -159,6 +159,15 @@ class JwtAuthenticationIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    // Sem esse esquema no OpenAPI o Swagger UI não mostra o botão "Authorize" e não consegue enviar o token.
+    @Test
+    void openApiDocumentDeclaresBearerSecurityScheme() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"));
+    }
+
     @Test
     void registerDoesNotAcceptAdminAccessType() throws Exception {
         String json = """
