@@ -41,6 +41,10 @@ class RedisProductRegistrationQueueTest {
 
     @BeforeAll
     static void connect() {
+        org.junit.jupiter.api.Assumptions.assumeTrue("true".equalsIgnoreCase(System.getenv("REDIS_INTEGRATION_TESTS")),
+                "Redis real exige REDIS_INTEGRATION_TESTS=true e ambiente dedicado de testes.");
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("REDIS_HOST") != null && System.getenv("REDIS_PORT") != null,
+                "Configure REDIS_HOST e REDIS_PORT para testes de integração.");
         var server = new RedisStandaloneConfiguration(System.getenv("REDIS_HOST"),
                 Integer.parseInt(System.getenv("REDIS_PORT")));
         server.setUsername(System.getenv("REDIS_USERNAME"));
@@ -232,5 +236,15 @@ class RedisProductRegistrationQueueTest {
     private static ProductRegistrationJob job(String barcode) {
         return ProductRegistrationJob.queued(UUID.randomUUID(),
                 new BarcodeRegistrationRequest("Arroz", "Inventra", null, 1, barcode, null));
+    }
+
+    @Test void deadLetterHasBoundedSizeAndInactivityExpiry() {
+        redis.opsForList().leftPushAll(prefix + ":errors", java.util.Collections.nCopies(1000, "old"));
+        var job = job("7891234567890");
+        queue.enqueue(job);
+        assertThat(queue.acquire(token)).isTrue();
+        assertThat(queue.update(job.failed("PROCESSING_ERROR"), token)).isTrue();
+        assertThat(redis.opsForList().size(prefix + ":errors")).isEqualTo(1000);
+        assertThat(redis.getExpire(prefix + ":errors")).isBetween(1L, 604800L);
     }
 }
