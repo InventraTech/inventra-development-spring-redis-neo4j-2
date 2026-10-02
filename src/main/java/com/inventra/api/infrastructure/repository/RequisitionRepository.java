@@ -19,7 +19,7 @@ public interface RequisitionRepository extends JpaRepository<Requisition, Intege
 
     List<Requisition> findByRequesterId(UUID requesterId);
 
-    // Procedures criadas em V2__business_rules.sql. clearAutomatically descarta as entidades em memória,
+    // Procedures criadas em V3__business_rules.sql. clearAutomatically descarta as entidades em memória,
     // já que a procedure (e os triggers) alteram a linha direto no banco.
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = "CALL sp_approve_requisition(:requisitionId, :approverId)", nativeQuery = true)

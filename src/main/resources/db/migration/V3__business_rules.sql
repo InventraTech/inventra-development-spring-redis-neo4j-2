@@ -1,5 +1,6 @@
 -- Copiado de arte-e-modelagem-de-dados/postgre/09_migrations/V002__business_rules.sql (disciplina de Modelagem de Dados).
 -- As procedures sp_* sao chamadas pela API via CALL nos repositories; as functions fn_* rodam como triggers.
+-- E V3 (nao V2) porque o banco compartilhado (Aiven) ja tem uma V2 aplicada: V2__remove_user_role_column, nunca commitada.
 
 -- ---------------------------------------------------
 -- FUNCTION CREATION
