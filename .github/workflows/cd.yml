@@ -2,9 +2,12 @@ name: "CD"
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
 
 jobs:
   cd:
     uses: InventraTech/.github/.github/workflows/cd-java.yaml@main
+    with:
+      image-name: inventra-api
+      gitops-app: inventra-api
     secrets: inherit
