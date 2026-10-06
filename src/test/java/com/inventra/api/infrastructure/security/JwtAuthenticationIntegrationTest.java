@@ -68,6 +68,42 @@ class JwtAuthenticationIntegrationTest {
 
     private String email;
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"comprador", "estoquista"})
+    void restrictedRolesCannotCreateProductsThroughEitherEndpoint(String role) throws Exception {
+        var profile = profileRepository.findByAccessType(role).orElseGet(
+                () -> profileRepository.saveAndFlush(Profile.builder().accessType(role).build()));
+        var user = userRepository.findByEmail(email).orElseThrow();
+        user.setProfile(profile);
+        userRepository.saveAndFlush(user);
+        String token = login(email, RAW_PASSWORD);
+        for (String url : java.util.List.of("/api/products", "/api/products/barcode-registrations")) {
+            mockMvc.perform(post(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"Arroz\",\"unitId\":1,\"barcode\":\"7891234567890\"}"))
+                    .andExpect(status().isForbidden());
+        }
+        org.mockito.Mockito.verifyNoInteractions(productRegistrationQueue);
+    }
+
+    @Test
+    void supervisorCanEnqueueAndReachNormalProductCreation() throws Exception {
+        ensureProfile("supervisor");
+        var user = userRepository.findByEmail(email).orElseThrow();
+        user.setProfile(profileRepository.findByAccessType("supervisor").orElseThrow());
+        userRepository.saveAndFlush(user);
+        String token = login(email, RAW_PASSWORD);
+        mockMvc.perform(post("/api/products/barcode-registrations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Arroz\",\"unitId\":1,\"barcode\":\"7891234567890\"}"))
+                .andExpect(status().isAccepted());
+        // Validação de corpo confirma que passou pelo RBAC, sem depender de produto/unidade existentes.
+        mockMvc.perform(post("/api/products").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest());
+    }
+
     @BeforeEach
     void seedUser() {
         // saveAndFlush: o login roda numa sessão JPA separada (por requisição via MockMvc),

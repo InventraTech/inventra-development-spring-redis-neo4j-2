@@ -14,6 +14,7 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.RedisSystemException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.DisabledException;
@@ -103,14 +104,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({RedisConnectionFailureException.class, RedisSystemException.class})
     public ProblemDetail handleRedisUnavailable(RuntimeException ex) {
-        log.warn("Redis indisponível errorType={}", ex.getClass().getSimpleName());
+        log.warn("Redis indisponível errorType={}", ex.getClass().getSimpleName(), ex);
         return buildProblem(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable",
                 "Serviço de processamento indisponível. Tente novamente em instantes.");
     }
 
     @ExceptionHandler(QueueServiceException.class)
     public ProblemDetail handleQueueService(QueueServiceException ex) {
-        log.warn("Falha no serviço de fila errorType={}", ex.getClass().getSimpleName());
+        log.warn("Falha no serviço de fila errorType={}", ex.getClass().getSimpleName(), ex);
         return buildProblem(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable",
                 "Serviço de processamento indisponível. Tente novamente em instantes.");
     }
@@ -130,12 +131,14 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ProblemDetail handleGeneric(Exception ex) {
+    public ResponseEntity<ProblemDetail> handleGeneric(Exception ex) {
         if (ex instanceof ErrorResponse errorResponse) {
-            return errorResponse.getBody();
+            return ResponseEntity.status(errorResponse.getStatusCode())
+                    .headers(errorResponse.getHeaders()).body(errorResponse.getBody());
         }
         log.error("Erro não tratado", ex);
-        return buildProblem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Erro interno no servidor.");
+        return ResponseEntity.internalServerError().body(
+                buildProblem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Erro interno no servidor."));
     }
 
     private ProblemDetail buildProblem(HttpStatus status, String title, String detail) {
