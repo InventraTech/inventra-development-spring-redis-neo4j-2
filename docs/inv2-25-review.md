@@ -30,6 +30,11 @@ simulada, retry limitado, backoff, ACK perdido e idempotência após editar barc
 Os scripts novos de quarentena ainda precisam da execução do workflow Redis.
 `git diff --check` e a verificação do diff staged passaram.
 
+O Redis descartável do workflow não usa autenticação. REDIS_HOST e REDIS_PORT
+continuam obrigatórios quando a integração é habilitada; REDIS_USERNAME e
+REDIS_PASSWORD são opcionais para aceitar Redis local sem ACL e continuam sendo
+usados quando preenchidos para serviços autenticados.
+
 Comando executado (Java 21, REDIS_INTEGRATION_TESTS=false):
 
 ```powershell

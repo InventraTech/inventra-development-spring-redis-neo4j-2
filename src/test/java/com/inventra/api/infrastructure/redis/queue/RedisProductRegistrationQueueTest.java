@@ -48,8 +48,10 @@ class RedisProductRegistrationQueueTest {
                 "Configure REDIS_HOST e REDIS_PORT para testes de integração.");
         var server = new RedisStandaloneConfiguration(System.getenv("REDIS_HOST"),
                 Integer.parseInt(System.getenv("REDIS_PORT")));
-        server.setUsername(System.getenv("REDIS_USERNAME"));
-        server.setPassword(System.getenv("REDIS_PASSWORD"));
+        String username = System.getenv("REDIS_USERNAME");
+        String password = System.getenv("REDIS_PASSWORD");
+        if (username != null && !username.isBlank()) server.setUsername(username);
+        if (password != null && !password.isBlank()) server.setPassword(password);
         server.setDatabase(Integer.parseInt(System.getenv().getOrDefault("REDIS_DATABASE", "0")));
         var client = LettuceClientConfiguration.builder().commandTimeout(Duration.ofSeconds(10));
         if (Boolean.parseBoolean(System.getenv().getOrDefault("REDIS_SSL", "true"))) client.useSsl();
