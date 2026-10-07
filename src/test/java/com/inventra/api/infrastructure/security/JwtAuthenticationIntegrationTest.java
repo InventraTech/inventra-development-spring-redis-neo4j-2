@@ -5,11 +5,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.verify;
 
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -32,6 +34,8 @@ import com.inventra.api.core.service.auth.model.response.LoginResponse;
 import com.inventra.api.infrastructure.client.openfoodfacts.OpenFoodFactsClient;
 import com.inventra.api.infrastructure.repository.ProfileRepository;
 import com.inventra.api.infrastructure.repository.UserRepository;
+import com.inventra.api.infrastructure.redis.queue.RedisProductRegistrationQueue;
+import com.inventra.api.core.service.productqueue.model.ProductRegistrationJob;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -59,7 +63,46 @@ class JwtAuthenticationIntegrationTest {
     @MockitoBean
     private OpenFoodFactsClient openFoodFactsClient;
 
+    @MockitoBean
+    private RedisProductRegistrationQueue productRegistrationQueue;
+
     private String email;
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"comprador", "estoquista"})
+    void restrictedRolesCannotCreateProductsThroughEitherEndpoint(String role) throws Exception {
+        var profile = profileRepository.findByAccessType(role).orElseGet(
+                () -> profileRepository.saveAndFlush(Profile.builder().accessType(role).build()));
+        var user = userRepository.findByEmail(email).orElseThrow();
+        user.setProfile(profile);
+        userRepository.saveAndFlush(user);
+        String token = login(email, RAW_PASSWORD);
+        for (String url : java.util.List.of("/api/products", "/api/products/barcode-registrations")) {
+            mockMvc.perform(post(url).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"Arroz\",\"unitId\":1,\"barcode\":\"7891234567890\"}"))
+                    .andExpect(status().isForbidden());
+        }
+        org.mockito.Mockito.verifyNoInteractions(productRegistrationQueue);
+    }
+
+    @Test
+    void supervisorCanEnqueueAndReachNormalProductCreation() throws Exception {
+        ensureProfile("supervisor");
+        var user = userRepository.findByEmail(email).orElseThrow();
+        user.setProfile(profileRepository.findByAccessType("supervisor").orElseThrow());
+        userRepository.saveAndFlush(user);
+        String token = login(email, RAW_PASSWORD);
+        mockMvc.perform(post("/api/products/barcode-registrations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Arroz\",\"unitId\":1,\"barcode\":\"7891234567890\"}"))
+                .andExpect(status().isAccepted());
+        // Validação de corpo confirma que passou pelo RBAC, sem depender de produto/unidade existentes.
+        mockMvc.perform(post("/api/products").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest());
+    }
 
     @BeforeEach
     void seedUser() {
@@ -94,9 +137,35 @@ class JwtAuthenticationIntegrationTest {
     }
 
     @Test
+    void barcodeRegistrationRequiresAuthentication() throws Exception {
+        mockMvc.perform(post("/api/products/barcode-registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Arroz\",\"unitId\":1,\"barcode\":\"7891234567890\"}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/products/barcode-registrations/" + UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void validTokenEnqueuesRegistrationWithAuthenticatedUser() throws Exception {
+        String token = login(email, RAW_PASSWORD);
+        mockMvc.perform(post("/api/products/barcode-registrations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Arroz\",\"unitId\":1,\"barcode\":\"7891234567890\"}"))
+                .andExpect(status().isAccepted());
+        var captor = ArgumentCaptor.forClass(ProductRegistrationJob.class);
+        verify(productRegistrationQueue).enqueue(captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().userId())
+                .isEqualTo(userRepository.findByEmail(email).orElseThrow().getId());
+    }
+
+    @Test
     void tamperedTokenIsRejected() throws Exception {
         String token = login(email, RAW_PASSWORD);
-        String tampered = token.substring(0, token.length() - 1) + (token.endsWith("A") ? "B" : "A");
+        int signatureStart = token.lastIndexOf('.') + 1;
+        String tampered = token.substring(0, signatureStart)
+                + (token.charAt(signatureStart) == 'A' ? 'B' : 'A') + token.substring(signatureStart + 1);
 
         mockMvc.perform(get("/api/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + tampered))
                 .andExpect(status().isUnauthorized());
