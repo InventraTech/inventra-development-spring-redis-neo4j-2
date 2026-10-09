@@ -88,6 +88,8 @@ Uploads são limitados a **5 MB** por arquivo/request (`spring.servlet.multipart
 
 A aplicação sobe em `http://localhost:8080`. O Flyway aplica as migrations de `src/main/resources/db/migration/` automaticamente na primeira execução.
 
+> **Migrations não são editadas aqui.** O repositório [inventra-data-modeling-2](https://github.com/InventraTech/inventra-data-modeling-2) é a fonte da verdade do schema: toda mudança nasce lá (`postgre/09_migrations`) e é copiada byte a byte para `db/migration`, mantendo os mesmos nomes (`V001__...`, `V002__...`).
+
 - **Swagger UI:** `http://localhost:8080/swagger-ui.html` — para chamar endpoints protegidos, faça login (ou registre-se), clique em **Authorize** e cole o `token` (sem o prefixo `Bearer`)
 - **OpenAPI JSON:** `http://localhost:8080/v3/api-docs`
 - **Health check:** `http://localhost:8080/actuator/health`
@@ -154,7 +156,7 @@ src/main/java/com/inventra/api/
 
 src/main/resources/
 ├── application.properties
-└── db/migration/       # Flyway (V1__init_database.sql, ...)
+└── db/migration/       # Flyway (V001..V005): copia exata de inventra-data-modeling-2/postgre/09_migrations
 ```
 
 ## Coleção Bruno

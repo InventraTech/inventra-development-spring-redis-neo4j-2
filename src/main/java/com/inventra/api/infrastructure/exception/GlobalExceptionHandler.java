@@ -70,7 +70,7 @@ public class GlobalExceptionHandler {
         return buildProblem(HttpStatus.CONFLICT, "Conflict", "A operação viola uma restrição de integridade dos dados.");
     }
 
-    // RAISE EXCEPTION das procedures/triggers (V3__business_rules.sql) chega com SQLState P0001:
+    // RAISE EXCEPTION das procedures/triggers (V002__business_rules.sql) chega com SQLState P0001:
     // é regra de negócio do banco, então devolve 409 com a mensagem da procedure.
     @ExceptionHandler(DataAccessException.class)
     public ProblemDetail handleDataAccess(DataAccessException ex) {
