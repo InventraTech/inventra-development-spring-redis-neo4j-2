@@ -30,7 +30,7 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, Integer>
             """)
     BigDecimal sumActiveQuantity(@Param("productId") Integer productId, @Param("kitchenId") Integer kitchenId);
 
-    // Procedures criadas em V3__business_rules.sql. O trigger trg_update_batch_status marca o lote
+    // Procedures criadas em V002__business_rules.sql. O trigger trg_update_batch_status marca o lote
     // como WRITTEN_OFF quando o saldo zera.
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = "CALL sp_register_stock_entry(:batchId, :quantity)", nativeQuery = true)

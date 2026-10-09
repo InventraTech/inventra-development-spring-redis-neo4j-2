@@ -16,7 +16,7 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
 
     boolean existsByKitchenIdAndStatus(Integer kitchenId, InventoryStatus status);
 
-    // Procedure criada em V3__business_rules.sql
+    // Procedure criada em V002__business_rules.sql
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = "CALL sp_close_inventory(:inventoryId)", nativeQuery = true)
     void callCloseInventory(@Param("inventoryId") Integer inventoryId);
