@@ -5,22 +5,24 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.requisition.Requisition;
 import com.inventra.api.core.domain.requisition.enums.RequisitionStatus;
 import com.inventra.api.core.service.requisition.RequisitionUseCase;
 import com.inventra.api.core.service.requisition.model.request.AddRequisitionItemRequest;
-import com.inventra.api.core.service.requisition.model.request.ApproveRequisitionRequest;
 import com.inventra.api.core.service.requisition.model.request.CancelRequisitionRequest;
 import com.inventra.api.core.service.requisition.model.request.CreateRequisitionRequest;
 import com.inventra.api.core.service.requisition.model.request.RejectRequisitionRequest;
 import com.inventra.api.core.service.requisition.model.response.RequisitionItemResponse;
 import com.inventra.api.core.service.requisition.model.response.RequisitionResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@PreAuthorize(Roles.REQUISITION)
 @RestController
 @RequestMapping("/api/requisitions")
 @RequiredArgsConstructor
@@ -82,13 +84,14 @@ public class RequisitionController {
         return ResponseEntity.ok(RequisitionResponse.fromEntity(useCase.submit(id)));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/approve")
-    public ResponseEntity<RequisitionResponse> approve(@PathVariable Integer id,
-                                                        @Valid @RequestBody ApproveRequisitionRequest request) {
-        Requisition approved = useCase.approve(id, request.approverId());
+    public ResponseEntity<RequisitionResponse> approve(@PathVariable Integer id) {
+        Requisition approved = useCase.approve(id);
         return ResponseEntity.ok(RequisitionResponse.fromEntity(approved));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/reject")
     public ResponseEntity<RequisitionResponse> reject(@PathVariable Integer id,
                                                        @Valid @RequestBody RejectRequisitionRequest request) {

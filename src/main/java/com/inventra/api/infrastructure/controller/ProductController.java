@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,6 +22,7 @@ import com.inventra.api.core.service.product.model.response.ProductResponse;
 import com.inventra.api.core.service.product.model.response.ProductSupplierResponse;
 import com.inventra.api.infrastructure.client.openfoodfacts.OpenFoodFactsClient;
 import com.inventra.api.infrastructure.client.openfoodfacts.model.OpenFoodFactsProduct;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class ProductController {
     private final ProductUseCase useCase;
     private final OpenFoodFactsClient openFoodFactsClient;
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<ProductResponse> create(@Valid @RequestBody CreateProductRequest request) {
         Product created = useCase.create(request);
@@ -62,6 +65,7 @@ public class ProductController {
         return ResponseEntity.ok(page);
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponse> update(@PathVariable Integer id,
                                                    @Valid @RequestBody UpdateProductRequest request) {
@@ -69,6 +73,7 @@ public class ProductController {
         return ResponseEntity.ok(ProductResponse.fromEntity(updated));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}/photo")
     public ResponseEntity<ProductResponse> updatePhoto(@PathVariable Integer id,
                                                         @RequestParam("file") MultipartFile file) throws IOException {
@@ -76,24 +81,28 @@ public class ProductController {
         return ResponseEntity.ok(ProductResponse.fromEntity(updated));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @DeleteMapping("/{id}/photo")
     public ResponseEntity<ProductResponse> removePhoto(@PathVariable Integer id) {
         Product updated = useCase.removePhoto(id);
         return ResponseEntity.ok(ProductResponse.fromEntity(updated));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/activate")
     public ResponseEntity<Void> activate(@PathVariable Integer id) {
         useCase.activate(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable Integer id) {
         useCase.deactivate(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping("/{id}/suppliers")
     public ResponseEntity<Void> linkSupplier(@PathVariable Integer id, @Valid @RequestBody LinkSupplierRequest request) {
         useCase.linkSupplier(id, request);
@@ -105,6 +114,7 @@ public class ProductController {
         return ResponseEntity.ok(useCase.listSuppliers(id));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}/kitchen-parameters")
     public ResponseEntity<Void> setKitchenParameters(@PathVariable Integer id,
                                                       @Valid @RequestBody SetKitchenParametersRequest request) {

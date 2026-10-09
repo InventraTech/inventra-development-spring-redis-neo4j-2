@@ -9,6 +9,7 @@ import com.inventra.api.core.domain.kitchen.Kitchen;
 import com.inventra.api.core.domain.product.Product;
 import com.inventra.api.core.domain.stock.StockBatch;
 import com.inventra.api.core.service.alert.model.request.CreateAlertRequest;
+import com.inventra.api.infrastructure.exception.BusinessRuleException;
 import com.inventra.api.infrastructure.exception.ResourceNotFoundException;
 import com.inventra.api.infrastructure.repository.AlertRepository;
 import com.inventra.api.infrastructure.repository.KitchenRepository;
@@ -44,6 +45,14 @@ public class AlertService implements AlertUseCase {
         if (request.batchId() != null) {
             batch = stockBatchRepository.findById(request.batchId())
                 .orElseThrow(() -> new ResourceNotFoundException("Lote não encontrado."));
+            // o lote precisa ser da cozinha do alerta (e do produto informado), senão o alerta expõe
+            // dados de outra cozinha
+            if (!batch.getKitchen().getId().equals(kitchen.getId())) {
+                throw new BusinessRuleException("O lote não pertence à cozinha do alerta.");
+            }
+            if (product != null && !batch.getProduct().getId().equals(product.getId())) {
+                throw new BusinessRuleException("O lote não é do produto informado.");
+            }
         }
 
         Alert alert = Alert.builder()

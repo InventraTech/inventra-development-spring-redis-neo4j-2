@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.unit.Unit;
@@ -11,6 +12,7 @@ import com.inventra.api.core.service.unit.UnitUseCase;
 import com.inventra.api.core.service.unit.model.request.CreateUnitRequest;
 import com.inventra.api.core.service.unit.model.request.UpdateUnitRequest;
 import com.inventra.api.core.service.unit.model.response.UnitResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class UnitController {
 
     private final UnitUseCase useCase;
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<UnitResponse> create(@Valid @RequestBody CreateUnitRequest request) {
         Unit created = useCase.create(request);
@@ -42,6 +45,7 @@ public class UnitController {
         return ResponseEntity.ok(responses);
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}")
     public ResponseEntity<UnitResponse> update(@PathVariable Integer id,
                                                 @Valid @RequestBody UpdateUnitRequest request) {
@@ -49,6 +53,7 @@ public class UnitController {
         return ResponseEntity.ok(UnitResponse.fromEntity(updated));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
         useCase.delete(id);

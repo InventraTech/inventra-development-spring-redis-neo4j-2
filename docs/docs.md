@@ -30,10 +30,16 @@
 - Números decimais em `BigDecimal`:
   - Quantidades → precisão `(12,3)` (até 3 casas)
   - Preços → precisão `(12,2)`
-- **Escopo por cozinha:** todo usuário só acessa dados da própria `kitchen`. Endpoints com `kitchenId` no path/body/query validam contra `user.kitchen` → **403** se divergir; listagens multi-cozinha (`/stock-batches/low-stock`, `/stock-batches?productId=`, `/requisitions?status=`, `/requisitions?requesterId=`) filtram silenciosamente.
+- **Escopo por cozinha:** todo usuário só acessa dados da própria `kitchen`. Endpoints com `kitchenId` no path/body/query validam contra `user.kitchen` → **403** se divergir; listagens sem `kitchenId` (`/kitchens`, `/stock-batches/low-stock`, `/stock-batches?productId=`, `/requisitions?status=`, `/requisitions?requesterId=`, `/products/{id}/kitchen-parameters`) devolvem só dados da cozinha do usuário (filtrados no banco).
 - Endpoints paginados aceitam `?page=0&size=20&sort=name,asc` e respondem no formato `Page<T>` do Spring (`content`, `totalElements`, `totalPages`, `pageable`, ...).
-- Todos os endpoints exigem `Authorization: Bearer <token>`, **exceto** `POST /api/auth/login`, `GET /swagger-ui/**`, `GET /v3/api-docs/**`, `GET /actuator/health`.
-- Token inválido/expirado → **401**. Conta desativada (`active = false`) → **403**.
+- Todos os endpoints exigem `Authorization: Bearer <token>`, **exceto** `POST /api/auth/login`, `/register`, `/refresh`, `/logout`, `GET /swagger-ui/**`, `GET /v3/api-docs/**`, `GET /actuator/health`.
+- Token inválido/expirado → **401**. Conta desativada (`active = false`) → **403** no login; tokens já emitidos param de valer na hora (**401**).
+- **Papéis (RBAC):** só existem `supervisor`, `estoquista` e `comprador` (`profile.accessType`, authority `ROLE_<ACCESS_TYPE>`). Chamar um endpoint fora do papel → **403**.
+  - **Supervisor:** tudo.
+  - **Estoquista:** lotes de estoque (`/api/stock-batches`: entrada, baixa, reposição, ajuste e consultas), inventários (`/api/inventories`) e consulta/marcar como lido de alertas.
+  - **Comprador:** requisições (`/api/requisitions`: criar, itens, submit, cancelar, listar). Aprovar/rejeitar é do supervisor.
+  - Qualquer usuário logado: `GET` de catálogo (produtos, categorias, unidades, fornecedores, cozinhas, perfis), ver/editar o próprio nome (`/api/users/{seuId}`) e trocar a própria senha.
+- E-mail não diferencia maiúsculas/minúsculas (login e unicidade); é gravado em minúsculas.
 - `password_hash` nunca aparece em respostas — o `User` só expõe `id`, `name`, `email`, `kitchen`, `profile`, `active`, `lastLogin`, `createdAt`.
 
 ---
@@ -59,13 +65,15 @@
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
   "tokenType": "Bearer",
-  "expiresIn": 86400,
+  "expiresIn": 1800,
+  "refreshToken": "q3b0V0lJ1m...",
+  "refreshExpiresIn": 2592000,
   "user": {
     "id": "8f1c9b2a-...",
     "name": "Maria",
     "email": "maria@example.com",
     "kitchen": { "id": 1, "name": "Cozinha Central" },
-    "profile": { "id": 2, "accessType": "supervisor" },
+    "profile": { "id": 2, "accessType": "SUPERVISOR" },
     "active": true,
     "lastLogin": "2026-09-24T09:12:33",
     "createdAt": "2026-08-20T14:02:11"
@@ -73,9 +81,11 @@
 }
 ```
 
-`expiresIn` está em **segundos** (`JWT_EXPIRATION_MS / 1000`).
+`expiresIn` está em **segundos** (`JWT_EXPIRATION_MS / 1000`; padrão 30 min). `refreshToken` é um token opaco para renovar a sessão em `POST /api/auth/refresh` (1.3); `refreshExpiresIn` também é em segundos (`JWT_REFRESH_EXPIRATION_MS`, padrão 30 dias). Se o Redis estiver fora do ar no login, `refreshToken` e `refreshExpiresIn` vêm `null`: o `token` continua valendo, só não há renovação até o próximo login. O `accessType` sai sempre em **MAIÚSCULAS** em todas as respostas.
 
-**Erros:** **401** se credenciais inválidas; **403** se `active = false` (`Conta desativada. Contate um administrador.`).
+**Erros:** **401** se credenciais inválidas; **403** se `active = false` (`Conta desativada. Contate o supervisor da sua cozinha.`); **429** depois de 5 senhas erradas seguidas para o mesmo e-mail a partir do mesmo IP (bloqueio de 15 minutos).
+
+**Sobre o token:** ele carrega o `id` do usuário e uma impressão digital da senha. Desativar a conta ou trocar a senha invalida na hora todos os tokens emitidos antes (inclusive o da própria sessão — é preciso logar de novo). Tokens emitidos antes desta versão da API não têm essa impressão digital e deixam de valer: todos precisam logar de novo após o deploy.
 
 ### 1.2 Auto-cadastro
 
@@ -96,17 +106,52 @@
 - `password` 8–100 chars (armazenado com BCrypt).
 - `accessType`: `SUPERVISOR` | `ESTOQUISTA` | `COMPRADOR`. `ADMIN` **não** é aceito aqui.
 
-**201 Created** — mesmo `LoginResponse` do 1.1 (usuário já autenticado). O usuário é criado **sem cozinha**; um admin precisa atribuir depois via `PUT /api/users/{id}`.
+**201 Created** — mesmo `LoginResponse` do 1.1 (usuário já autenticado). O usuário é criado **sem cozinha**: ele pede entrada numa cozinha pelo código (4.6) e um supervisor aprova, ou, se for supervisor, cria a própria cozinha (4.1) e já fica vinculado a ela.
 
 **Erros:** **409** se e-mail já cadastrado.
 
 O `Profile` correspondente ao `accessType` (`supervisor`, `estoquista` ou `comprador`, em minúsculas) é criado em `tb_profile` no primeiro cadastro que o usa, caso ainda não exista.
+
+### 1.3 Renovar a sessão
+
+`POST /api/auth/refresh` — **público**
+
+```json
+{ "refreshToken": "q3b0V0lJ1m..." }
+```
+
+**200 OK** — `LoginResponse` (1.1) com um **novo** `token` **e um novo `refreshToken`**: o refresh token é de uso único (rotação), então o app deve guardar o novo e descartar o antigo.
+
+**Regras:**
+- Cada renovação troca o token por um novo da mesma "família" (a cadeia de um mesmo login).
+- Reuso do token antigo até **10 s** depois da troca é tolerado, para chamadas simultâneas do app. Depois disso o reuso é tratado como vazamento: a família inteira é revogada e é preciso logar de novo.
+- O app deve fazer **uma renovação por vez** (single-flight) e repetir as chamadas que falharam com 401 depois dela.
+- Trocar a senha ou desativar a conta impede a renovação.
+
+**Erros:** **401** se o token for desconhecido, expirado, já revogado, ou se a senha mudou / a conta foi desativada; **400** se `refreshToken` vier vazio.
+
+### 1.4 Logout
+
+`POST /api/auth/logout` — **público**
+
+```json
+{ "refreshToken": "q3b0V0lJ1m..." }
+```
+
+**204 No Content** — revoga a família do refresh token. É idempotente: token desconhecido também responde 204. O access token já emitido segue válido até expirar (no máximo `expiresIn`).
 
 ---
 
 ## 2. Usuários
 
 `/api/users` — todos protegidos.
+
+**Regras de acesso:**
+- Criar, listar, ativar e desativar são exclusivos do **supervisor**, e só para usuários da **própria cozinha**.
+- Usuário ainda **sem cozinha** não pertence a ninguém: o supervisor só pode buscá-lo por id (`GET /api/users/{id}`) e **puxá-lo** pra cozinha dele (`PUT /api/users/{id}` com `kitchenId` = a cozinha do supervisor). Não aparece na listagem e não pode ser desativado nem ter o perfil trocado sem ser vinculado.
+- Ninguém vincula usuário a uma cozinha que não seja a sua.
+- A cozinha precisa de pelo menos um supervisor ativo: rebaixar o último → **409**.
+- Qualquer usuário pode buscar e editar o **próprio nome** e trocar a **própria senha**.
 
 ### 2.1 Criar usuário
 
@@ -122,7 +167,7 @@ O `Profile` correspondente ao `accessType` (`supervisor`, `estoquista` ou `compr
 }
 ```
 
-**Validações:** `email` único; `profileId` obrigatório e existente; `kitchenId` opcional (usuário fica sem escopo até ser atribuído).
+**Validações:** `name` obrigatório, até 120; `email` formato válido, até 150, único; `password` 8–100; `profileId` obrigatório e existente; `kitchenId` opcional — se enviado, precisa ser a cozinha do supervisor (senão **403**).
 
 **201 Created** — retorna `UserResponse` com header `Location: /api/users/{id}`.
 
@@ -130,13 +175,13 @@ O `Profile` correspondente ao `accessType` (`supervisor`, `estoquista` ou `compr
 
 ### 2.2 Listar usuários
 
-`GET /api/users` → array de `UserResponse`.
+`GET /api/users` → array de `UserResponse` (só supervisor; só usuários da cozinha dele).
 
 ### 2.3 Buscar por ID
 
 `GET /api/users/{id}` — `id` = UUID.
 
-**200 OK** — `UserResponse`; **404** se não existir.
+**200 OK** — `UserResponse`; **404** se não existir; **403** se não for você nem um usuário da cozinha do supervisor. Usuário sem cozinha só enxerga a si mesmo: a entrada numa cozinha é por pedido (4.6).
 
 ### 2.4 Atualizar usuário
 
@@ -150,7 +195,7 @@ O `Profile` correspondente ao `accessType` (`supervisor`, `estoquista` ou `compr
 }
 ```
 
-Todos os campos são opcionais — só aplica os enviados. `kitchenId`/`profileId` inexistentes → **404**.
+Todos os campos são opcionais — só aplica os enviados. Só o próprio usuário ou o supervisor da mesma cozinha altera a conta (**403** caso contrário). `kitchenId`/`profileId` só podem ser alterados por supervisor, e `kitchenId` precisa ser a cozinha do próprio supervisor. O supervisor **não** puxa mais usuário sem cozinha por aqui: esse caminho é o pedido de entrada (4.6). `kitchenId`/`profileId` inexistentes → **404**.
 
 ### 2.5 Trocar senha
 
@@ -165,12 +210,18 @@ Todos os campos são opcionais — só aplica os enviados. `kitchenId`/`profileI
 
 **204 No Content**.
 
-**Erros:** **409** (`Senha atual incorreta.`) se `currentPassword` não bater com o hash armazenado.
+**Validações:** `currentPassword` obrigatório; `newPassword` 8–100.
+
+**Erros:** **409** (`Senha atual incorreta.`) se `currentPassword` não bater com o hash armazenado; **403** se `{id}` não for o usuário logado (só dá pra trocar a própria senha). Depois da troca, todos os tokens anteriores param de valer — logue de novo com a senha nova.
 
 ### 2.6 Ativar / desativar
 
 `PATCH /api/users/{id}/activate` → **204**
-`PATCH /api/users/{id}/deactivate` → **204** — bloqueia login (`DisabledException` → **403** no login).
+`PATCH /api/users/{id}/deactivate` → **204** — bloqueia login (`DisabledException` → **403** no login) e invalida os tokens já emitidos. Não dá pra desativar a própria conta (**409**).
+
+### 2.7 Usuário logado
+
+`GET /api/users/me` — **200 OK** com o `UserResponse` do usuário do token, lido do banco. Serve para o app atualizar o que mudou no servidor (por exemplo, a cozinha depois que um supervisor aprova o pedido de entrada) sem novo login.
 
 ---
 
@@ -178,7 +229,7 @@ Todos os campos são opcionais — só aplica os enviados. `kitchenId`/`profileI
 
 `/api/profiles`
 
-Perfis de acesso (roles). O `AuthService` casa `AccessType` do registro com `profile.accessType` em **lowercase** (`admin`, `supervisor`, `estoquista`, `comprador`).
+Perfis de acesso (roles). O `AuthService` casa `AccessType` do registro com `profile.accessType` em **lowercase** (`supervisor`, `estoquista`, `comprador`) no banco; nas respostas o `accessType` sai em MAIÚSCULAS. Criar/atualizar/deletar perfil é exclusivo do supervisor; atualizar `accessType` para um valor já usado → **409**. Os perfis base (`supervisor`, `estoquista`, `comprador`) sustentam as permissões de todas as cozinhas: não podem ser renomeados nem excluídos (só a descrição muda), e variações do nome (`SUPERVISOR`, ` supervisor`) são recusadas → **409**.
 
 ### 3.1 Criar
 
@@ -210,10 +261,12 @@ Perfis de acesso (roles). O `AuthService` casa `AccessType` do registro com `pro
 `POST /api/kitchens`
 
 ```json
-{ "name": "Cozinha Central", "code": "CC-001", "address": "Rua X, 123" }
+{ "name": "Cozinha Central", "address": "Rua X, 123" }
 ```
 
-**Validações:** `name` até 120; `code` **único**, até 20; `address` até 255.
+**Validações:** `name` obrigatório, até 120; `address` até 255. O `code` é **gerado pela API** (6 caracteres, sem `O/0/I/1`, único) e devolvido na resposta; um `code` enviado no corpo é ignorado.
+
+**Regras:** só supervisor. Quem cria a cozinha é **vinculado a ela** automaticamente — cada usuário tem uma cozinha só, então quem já tem cozinha recebe **409** (`Você já está vinculado a uma cozinha.`). Atualizar/ativar/desativar também é só do supervisor, e só da própria cozinha.
 
 **201 Created** — `KitchenResponse`:
 
@@ -221,7 +274,7 @@ Perfis de acesso (roles). O `AuthService` casa `AccessType` do registro com `pro
 {
   "id": 1,
   "name": "Cozinha Central",
-  "code": "CC-001",
+  "code": "K7M2QX",
   "address": "Rua X, 123",
   "active": true,
   "createdAt": "2026-09-24T09:00:00"
@@ -230,12 +283,12 @@ Perfis de acesso (roles). O `AuthService` casa `AccessType` do registro com `pro
 
 ### 4.2 Listar ativas
 
-`GET /api/kitchens` → só as ativas.
+`GET /api/kitchens` → a cozinha do usuário, se estiver ativa (lista vazia caso contrário).
 
 ### 4.3 Buscar
 
 - `GET /api/kitchens/{id}` — por ID.
-- `GET /api/kitchens/by-code/{code}` — pelo código único.
+- `GET /api/kitchens/by-code/{code}` — pelo código (sem diferenciar maiúsculas de minúsculas). Aberto a **qualquer usuário autenticado**, inclusive quem ainda não tem cozinha, para confirmar a cozinha antes de pedir entrada. Devolve só `{ "id": 1, "name": "Cozinha Central" }`. Cozinha desativada ou inexistente → **404**. Limitado por usuário (padrão 10 consultas por hora, `KITCHEN_CODE_LOOKUP_MAX_PER_HOUR`); acima disso → **429**.
 
 ### 4.4 Atualizar
 
@@ -251,6 +304,38 @@ Perfis de acesso (roles). O `AuthService` casa `AccessType` do registro com `pro
 
 `PATCH /api/kitchens/{id}/activate` → **204**
 `PATCH /api/kitchens/{id}/deactivate` → **204**
+
+### 4.6 Pedido de entrada na cozinha
+
+`/api/kitchen-access-requests` — guardado no Redis. Pedido pendente expira sozinho em **7 dias** (`KITCHEN_ACCESS_REQUEST_TTL`); depois de aprovado ou recusado, o registro permanece como histórico (quem decidiu e quando).
+
+| Endpoint | Quem | O que faz |
+|---|---|---|
+| `POST /api/kitchen-access-requests` `{ "code": "K7M2QX" }` | qualquer usuário **sem cozinha** | cria o pedido pendente (**201**) |
+| `GET /api/kitchen-access-requests/mine` | o próprio usuário | pedido mais recente; **404** se não houver (ou se o pendente expirou) |
+| `GET /api/kitchen-access-requests?status=PENDING` | supervisor | pedidos da própria cozinha; sem `status` traz também o histórico |
+| `POST /api/kitchen-access-requests/{id}/approve` | supervisor da cozinha | aprova e **vincula o usuário à cozinha** |
+| `POST /api/kitchen-access-requests/{id}/reject` `{ "reason": "..." }` | supervisor da cozinha | recusa; `reason` opcional |
+
+**200/201** — `KitchenAccessRequestResponse`:
+
+```json
+{
+  "id": "4c1f...",
+  "status": "PENDING",
+  "kitchen": { "id": 1, "name": "Cozinha Central" },
+  "user": { "id": "8f1c9b2a-...", "name": "João", "email": "joao@example.com" },
+  "createdAt": "2026-10-09T18:55:02Z",
+  "expiresAt": "2026-10-16T18:55:02Z",
+  "decidedAt": null,
+  "decidedBy": null,
+  "reason": null
+}
+```
+
+`status`: `PENDING` | `APPROVED` | `REJECTED`. `expiresAt` só vem enquanto o pedido está pendente.
+
+**Erros:** **409** se o usuário já tem cozinha, já tem pedido pendente, ou se o pedido já foi decidido; **404** para código inexistente/cozinha desativada ou pedido inexistente/expirado; **403** para quem não é supervisor da cozinha do pedido. Depois da aprovação o app chama `GET /api/users/me` para ver a cozinha; o token continua o mesmo.
 
 ---
 
@@ -347,12 +432,11 @@ Perfis de acesso (roles). O `AuthService` casa `AccessType` do registro com `pro
   "brand": "Marca X",
   "categoryId": 3,
   "unitId": 1,
-  "barcode": "7891234567890",
-  "photoUrl": null
+  "barcode": "7891234567890"
 }
 ```
 
-**Validações:** `name` até 150; `brand` até 80; `unitId` obrigatório; `categoryId` opcional; `barcode` **único**, até 50; `photoUrl` opcional (para upload de arquivo, use 8.5).
+**Validações:** `name` até 150; `brand` até 80; `unitId` obrigatório; `categoryId` opcional; `barcode` **único**, até 50. A foto **não** vem aqui: envie o arquivo pelo upload (8.5), que valida a imagem e gera a URL.
 
 **Erros:** **409** se `barcode` já existir; **404** se `unitId` / `categoryId` inexistentes.
 
@@ -468,7 +552,7 @@ curl -X PUT http://localhost:8080/api/products/42/photo \
 }
 ```
 
-**Validações:** `kitchenId` no escopo do usuário; `minStock` default `0` se ausente.
+**Validações:** `kitchenId` no escopo do usuário; `minStock` default `0` se ausente; valores `>= 0`; `maxStock` não pode ser menor que `minStock` (**400**).
 
 **204 No Content**. Insere ou atualiza (chave composta `product_id + kitchen_id`).
 
@@ -579,11 +663,17 @@ Retorna lotes `ACTIVE` cuja `expirationDate` está entre hoje e `hoje + N dias`.
 
 `GET /api/stock-batches/low-stock`
 
-Só considera cozinhas do usuário. Retorna:
+Só considera a cozinha do usuário. O saldo conta apenas lotes `ACTIVE` dentro da validade (lote vencido não é estoque). Retorna:
 
 ```json
 [
-  { "kitchenId": 1, "productId": 42, "currentQuantity": 8.000, "minStock": 10.000 }
+  {
+    "kitchenId": 1,
+    "productId": 42,
+    "product": { "id": 42, "name": "Arroz", "unit": { "id": 3, "symbol": "kg" } },
+    "currentQuantity": 8.000,
+    "minStock": 10.000
+  }
 ]
 ```
 
@@ -598,6 +688,7 @@ Só considera cozinhas do usuário. Retorna:
 **Validações:** `quantity > 0`.
 
 **Regras:**
+- Lote fora de `ACTIVE` → **409** (`Só é possível dar baixa em lote ativo.`).
 - `quantity > currentQuantity` → **409** (`Quantidade solicitada maior que o saldo do lote.`).
 - A baixa é feita pela procedure `sp_write_off_stock`.
 - Se `currentQuantity` chegar a 0, o trigger `trg_update_batch_status` muda `status` para `WRITTEN_OFF`.
@@ -632,7 +723,12 @@ Soma uma quantidade ao saldo de um lote **já existente** (diferente de 9.1, que
 
 **Regras:**
 - `currentQuantity = currentQuantity + quantity`.
-- O lote volta para `status = ACTIVE`, mesmo que estivesse `WRITTEN_OFF`.
+- Lote `WRITTEN_OFF` volta para `status = ACTIVE`.
+- Lote `EXPIRED` ou `CANCELLED` não aceita reposição → **409** (`Não é possível dar entrada em lote vencido ou cancelado.`).
+
+**Cozinha e produto desativados:** cozinha desativada não movimenta estoque (entrada, baixa, reposição, ajuste) nem abre inventário ou requisição → **409**; produto desativado não recebe entrada nem pode ser requisitado → **409**.
+
+**Vencimento:** um job diário (00:05, horário de Brasília, e também na subida da API) marca como `EXPIRED` todo lote `ACTIVE` com validade passada e gera os alertas de vencimento e de estoque mínimo (procedure `sp_expire_batches`). Mesmo antes do job rodar, lote vencido nunca é consumido nem conta como estoque. Desligável com `BATCH_EXPIRATION_JOB_ENABLED=false`.
 
 **200 OK** — `StockBatchResponse` atualizado.
 
@@ -642,7 +738,7 @@ Soma uma quantidade ao saldo de um lote **já existente** (diferente de 9.1, que
 
 `/api/inventories`
 
-Contagem física periódica por cozinha. Só existe **um inventário `OPEN` por cozinha**; ao fechar, cada contagem ajusta o lote correspondente.
+Contagem física periódica por cozinha. Só existe **um inventário `OPEN` por cozinha**; ao fechar, a divergência de cada contagem é aplicada ao lote correspondente. Inventário é do supervisor e do estoquista.
 
 ### 10.1 Abrir inventário
 
@@ -656,7 +752,7 @@ Contagem física periódica por cozinha. Só existe **um inventário `OPEN` por 
 }
 ```
 
-**Validações:** `kitchenId` e `responsibleId` obrigatórios; `note` até 255.
+**Validações:** `kitchenId` obrigatório; `responsibleId` opcional — sem ele, o responsável é o usuário logado; se enviado, precisa ser um usuário da mesma cozinha (**409** caso contrário); `note` até 255.
 
 **Erros:** **409** (`Já existe um inventário em aberto para essa cozinha.`).
 
@@ -694,7 +790,7 @@ Contagem física periódica por cozinha. Só existe **um inventário `OPEN` por 
 }
 ```
 
-**Validações:** inventário deve estar `OPEN`; `physicalQuantity >= 0`; `note` até 255.
+**Validações:** inventário deve estar `OPEN`; o lote precisa ser da cozinha do inventário (**409**); cada lote só pode ser contado uma vez por inventário — pra recontar, remova a contagem anterior (**409**); `physicalQuantity >= 0`; `note` até 255.
 
 **201 Created** — `InventoryCountResponse`:
 
@@ -727,7 +823,7 @@ Contagem física periódica por cozinha. Só existe **um inventário `OPEN` por 
 
 **Regras:**
 - Sem contagens → **409** (`Inventário sem contagens não pode ser fechado.`).
-- Para cada contagem, chama `stock-batches/{batchId}/adjust` com `newQuantity = physicalQuantity`.
+- Para cada contagem, ajusta o lote para `saldo atual + divergence` (mínimo 0). Assim, consumos e entradas feitos entre a contagem e o fechamento não se perdem.
 - Depois chama a procedure `sp_close_inventory`, que define `status = CLOSED` e `closedAt = agora`.
 
 **200 OK** — `InventoryResponse`.
@@ -752,12 +848,11 @@ Requisição de compra, transferência ou consumo. Estado inicial já é `UNDER_
 {
   "type": "PURCHASE",
   "origin": "cozinha",
-  "kitchenId": 1,
-  "requesterId": "8f1c9b2a-..."
+  "kitchenId": 1
 }
 ```
 
-**Validações:** `type` obrigatório (`PURCHASE` | `TRANSFER` | `CONSUMPTION`); `origin` até 20 chars; `kitchenId` no escopo do usuário; `requesterId` obrigatório.
+**Validações:** `type` obrigatório (`PURCHASE` | `TRANSFER` | `CONSUMPTION`); `origin` obrigatório, até 20 chars; `kitchenId` obrigatório, no escopo do usuário. O solicitante é sempre o **usuário logado**.
 
 **201 Created** — `RequisitionResponse`:
 
@@ -798,6 +893,8 @@ Informe **apenas um** filtro. Sem nenhum → **400**. Os filtros `status` e `req
 }
 ```
 
+**Validações:** `productId` obrigatório (produto ativo); `quantity` obrigatório e `> 0`; `estimatedPrice >= 0`; `note` até 255. Comprador só edita (itens, submit, cancelar) as **próprias** requisições; o supervisor edita qualquer uma da cozinha → **403** caso contrário.
+
 **Regras:** se `estimatedPrice` for omitido e `suggestedSupplierId` estiver presente, herda do `referencePrice` do vínculo `product↔supplier`.
 
 **200 OK** — `RequisitionResponse` (não retorna os itens; use 11.5).
@@ -829,15 +926,14 @@ Informe **apenas um** filtro. Sem nenhum → **400**. Os filtros `status` e `req
 
 ### 11.7 Aprovar
 
-`PATCH /api/requisitions/{id}/approve`
-
-```json
-{ "approverId": "8f1c9b2a-..." }
-```
+`PATCH /api/requisitions/{id}/approve` — **sem corpo**; só supervisor.
 
 **Efeito:**
-- Chama a procedure `sp_approve_requisition`: `status = APPROVED`, `approver = <user>`. O trigger `trg_requisition_approval` preenche `approvedAt = agora`.
-- Para cada item: consome do produto na cozinha em **FIFO por validade** (lotes `ACTIVE` ordenados por `expirationDate ASC, entryDate ASC`).
+- Chama a procedure `sp_approve_requisition`: `status = APPROVED`, `approver = usuário logado`. O trigger `trg_requisition_approval` preenche `approvedAt = agora`.
+- `CONSUMPTION` e `TRANSFER`: para cada item, consome do produto na cozinha em **FIFO por validade** (lotes `ACTIVE` ordenados por `expirationDate ASC, entryDate ASC`).
+- `PURCHASE`: **não mexe no estoque** — a entrada acontece pelo `POST /api/stock-batches` (9.1) quando a mercadoria chega.
+- `TRANSFER` é a **saída** da cozinha da requisição; o destino é texto livre (`origin`), sem cozinha vinculada — a cozinha que recebe registra a própria entrada pelo 9.1.
+- Requisição sem itens → **409** (`Requisição sem itens não pode ser aprovada.`).
 - Estoque insuficiente → **409** (`Estoque insuficiente para atender a quantidade solicitada.`).
 
 ### 11.8 Rejeitar
@@ -850,7 +946,7 @@ Informe **apenas um** filtro. Sem nenhum → **400**. Os filtros `status` e `req
 
 **Validações:** `reason` obrigatório, até 255.
 
-**Efeito:** chama a procedure `sp_reject_requisition`: `status = REJECTED`, `reason = <texto>`, `approver = usuário logado`, `approvedAt = agora` (marca o momento da decisão).
+**Efeito:** chama a procedure `sp_reject_requisition`: `status = REJECTED`, `reason = <texto>`, `approver = usuário logado`. Só supervisor. `approvedAt` continua `null` (a requisição não foi aprovada).
 
 ### 11.9 Cancelar
 
@@ -865,7 +961,8 @@ Informe **apenas um** filtro. Sem nenhum → **400**. Os filtros `status` e `req
 **Efeito:** chama a procedure `sp_cancel_requisition`: `status = CANCELLED`, `reason = <texto>`.
 
 **Regras:**
-- Aceita requisições `UNDER_REVIEW` ou `APPROVED`. Em outro status → **409** (`Requisition {id} cannot be cancelled in its current status.`).
+- Aceita requisições `UNDER_REVIEW` ou `APPROVED`. Em outro status → **409** (`Requisição {id} não pode ser cancelada no status atual.`).
+- Comprador só cancela as **próprias** requisições, e só enquanto `UNDER_REVIEW`; cancelar uma `APPROVED` é do supervisor → **403**.
 - Cancelar uma requisição `APPROVED` **não devolve ao estoque** o que foi consumido na aprovação.
 
 **200 OK** — `RequisitionResponse`.
@@ -878,7 +975,7 @@ Informe **apenas um** filtro. Sem nenhum → **400**. Os filtros `status` e `req
 
 Notificações operacionais (validade próxima, estoque baixo, etc.). Podem ser criados manualmente pela API ou automaticamente pelos triggers do banco:
 
-- `trg_stock_alert`: quando o saldo de um lote fica `<= minStock` do produto na cozinha, cria um alerta `type = STOCK`, `severity = HIGH`.
+- `trg_stock_alert`: quando o saldo **total** dos lotes `ACTIVE` do produto na cozinha fica `< minStock`, cria um alerta `type = STOCK`, `severity = HIGH`.
 - `trg_expiration_alert`: quando um lote é gravado com `expirationDate` já vencida, cria um alerta `type = EXPIRATION`, `severity = CRITICAL`.
 
 Os dois só criam o alerta se não houver outro igual ainda não lido (`read = false`).
@@ -898,7 +995,7 @@ Os dois só criam o alerta se não houver outro igual ainda não lido (`read = f
 }
 ```
 
-**Validações:** `type` obrigatório, até 30; `severity` obrigatório (`LOW` | `MEDIUM` | `HIGH` | `CRITICAL`); `kitchenId` obrigatório no escopo do usuário; `message` obrigatório, até 255; `batchId` e `productId` opcionais.
+**Validações:** `type` obrigatório, até 30; `severity` obrigatório (`LOW` | `MEDIUM` | `HIGH` | `CRITICAL`); `kitchenId` obrigatório no escopo do usuário; `message` obrigatório, até 255; `batchId` e `productId` opcionais — se `batchId` vier, o lote precisa ser da mesma cozinha (e do `productId`, se informado) → **409**.
 
 **201 Created** — `AlertResponse`:
 
@@ -949,7 +1046,7 @@ Os dois só criam o alerta se não houver outro igual ainda não lido (`read = f
 ### `RequisitionStatus`
 
 - `UNDER_REVIEW` — estado inicial e único editável
-- `APPROVED` — consome estoque em FIFO por validade
+- `APPROVED` — `CONSUMPTION`/`TRANSFER` consomem estoque em FIFO por validade; `PURCHASE` não mexe no estoque
 - `REJECTED` — armazena `reason`
 - `CANCELLED`
 
@@ -961,9 +1058,9 @@ Os dois só criam o alerta se não houver outro igual ainda não lido (`read = f
 
 ### `StockBatchStatus`
 
-- `ACTIVE` — participa de FIFO e do cálculo de `low-stock`
+- `ACTIVE` — participa de FIFO e do cálculo de `low-stock` (enquanto estiver dentro da validade)
 - `WRITTEN_OFF` — saldo zerado
-- `EXPIRED`
+- `EXPIRED` — validade passada (marcado pelo job diário); não é consumido nem reposto
 - `CANCELLED`
 
 ### `AlertSeverity`
@@ -979,14 +1076,18 @@ Os dois só criam o alerta se não houver outro igual ainda não lido (`read = f
 | 200 | Sucesso em GET/PUT/PATCH com corpo |
 | 201 | Criação (POST) — com header `Location` |
 | 204 | Sucesso sem corpo (activate/deactivate, changePassword, delete, link supplier, set parameters) |
-| 400 | Payload malformado, filtro obrigatório ausente, formato de imagem inválido, `IOException` de upload |
+| 400 | JSON malformado, campo inválido, parâmetro obrigatório ausente ou de tipo errado (ex.: UUID inválido), `sort` inválido, formato de imagem inválido, `IOException` de upload |
 | 401 | Token ausente/inválido/expirado ou credenciais inválidas no login |
-| 403 | Conta desativada ou acesso a recurso fora do escopo da cozinha do usuário |
-| 404 | Recurso não encontrado (`ResourceNotFoundException`) |
-| 409 | Regra de negócio violada (`BusinessRuleException`), violação de constraint (unique, FK) ou `RAISE EXCEPTION` de uma procedure/trigger do banco (SQLState `P0001`; o `detail` traz a mensagem da procedure, em inglês) |
+| 403 | Conta desativada, endpoint fora do papel do usuário (RBAC) ou recurso fora do escopo da cozinha do usuário |
+| 404 | Recurso não encontrado (`ResourceNotFoundException`) ou rota inexistente |
+| 405 | Método HTTP não suportado no endpoint |
+| 415 | `Content-Type` não suportado |
+| 409 | Regra de negócio violada (`BusinessRuleException`), violação de constraint (unique, FK) ou `RAISE EXCEPTION` de uma procedure/trigger do banco (SQLState `P0001`; o `detail` traz a mensagem da procedure, em português) |
 | 413 | Upload maior que 5 MB |
 | 502 | Falha em serviço externo (Cloudinary, Open Food Facts) |
+| 429 | Muitas tentativas de login seguidas (bloqueio de 15 minutos por e-mail + IP) |
 | 500 | Erro inesperado |
+| 503 | Banco indisponível ao validar o token |
 
 **Formato-padrão do corpo de erro** (RFC 7807 `application/problem+json`):
 

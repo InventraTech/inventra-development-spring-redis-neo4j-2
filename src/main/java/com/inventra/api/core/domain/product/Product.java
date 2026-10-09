@@ -51,6 +51,7 @@ public class Product {
     private String photoUrl;
 
     @Column(name = "active", nullable = false)
+    @Builder.Default
     private Boolean active = true;
 
     @CreatedDate

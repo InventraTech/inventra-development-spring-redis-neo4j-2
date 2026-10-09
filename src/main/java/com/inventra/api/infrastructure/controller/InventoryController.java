@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.inventory.Inventory;
@@ -13,10 +14,12 @@ import com.inventra.api.core.service.inventory.model.request.OpenInventoryReques
 import com.inventra.api.core.service.inventory.model.request.RegisterInventoryCountRequest;
 import com.inventra.api.core.service.inventory.model.response.InventoryCountResponse;
 import com.inventra.api.core.service.inventory.model.response.InventoryResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@PreAuthorize(Roles.STOCK)
 @RestController
 @RequestMapping("/api/inventories")
 @RequiredArgsConstructor

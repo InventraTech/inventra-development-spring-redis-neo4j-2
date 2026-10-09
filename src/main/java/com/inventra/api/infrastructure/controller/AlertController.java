@@ -4,16 +4,19 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.alert.Alert;
 import com.inventra.api.core.service.alert.AlertUseCase;
 import com.inventra.api.core.service.alert.model.request.CreateAlertRequest;
 import com.inventra.api.core.service.alert.model.response.AlertResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@PreAuthorize(Roles.STOCK)
 @RestController
 @RequestMapping("/api/alerts")
 @RequiredArgsConstructor
@@ -21,6 +24,7 @@ public class AlertController {
 
     private final AlertUseCase useCase;
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<AlertResponse> create(@Valid @RequestBody CreateAlertRequest request) {
         Alert created = useCase.create(request);
@@ -49,6 +53,7 @@ public class AlertController {
         return ResponseEntity.ok(AlertResponse.fromEntity(useCase.markAsRead(id)));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
         useCase.delete(id);

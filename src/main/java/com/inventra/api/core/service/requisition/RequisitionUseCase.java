@@ -21,8 +21,9 @@ public interface RequisitionUseCase {
 
     Requisition submit(Integer requisitionId);
 
-    // chama sp_approve_requisition e dispara baixa de estoque via StockBatchUseCase
-    Requisition approve(Integer requisitionId, UUID approverId);
+    // chama sp_approve_requisition com o usuário logado como aprovador; CONSUMPTION/TRANSFER
+    // disparam baixa de estoque via StockBatchUseCase, PURCHASE não mexe no estoque
+    Requisition approve(Integer requisitionId);
 
     // chama sp_reject_requisition, com o usuário logado como aprovador
     Requisition reject(Integer requisitionId, String reason);

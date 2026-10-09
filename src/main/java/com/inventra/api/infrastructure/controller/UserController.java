@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.user.User;
@@ -13,6 +14,7 @@ import com.inventra.api.core.service.user.model.request.ChangePasswordRequest;
 import com.inventra.api.core.service.user.model.request.CreateUserRequest;
 import com.inventra.api.core.service.user.model.request.UpdateUserRequest;
 import com.inventra.api.core.service.user.model.response.UserResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class UserController {
 
     private final UserUseCase useCase;
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
         User created = useCase.create(request);
@@ -31,11 +34,17 @@ public class UserController {
         return ResponseEntity.created(URI.create("/api/users/" + response.id())).body(response);
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> me() {
+        return ResponseEntity.ok(UserResponse.fromEntity(useCase.findCurrent()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(UserResponse.fromEntity(useCase.findById(id)));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @GetMapping
     public ResponseEntity<List<UserResponse>> listAll() {
         List<UserResponse> responses = useCase.listAll().stream()
@@ -58,12 +67,14 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/activate")
     public ResponseEntity<Void> activate(@PathVariable UUID id) {
         useCase.activate(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
         useCase.deactivate(id);
