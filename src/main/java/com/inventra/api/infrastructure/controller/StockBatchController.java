@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.stock.StockBatch;
@@ -14,10 +15,12 @@ import com.inventra.api.core.service.stockbatch.model.request.RegisterStockEntry
 import com.inventra.api.core.service.stockbatch.model.request.RestockRequest;
 import com.inventra.api.core.service.stockbatch.model.response.LowStockAlertResponse;
 import com.inventra.api.core.service.stockbatch.model.response.StockBatchResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@PreAuthorize(Roles.STOCK)
 @RestController
 @RequestMapping("/api/stock-batches")
 @RequiredArgsConstructor

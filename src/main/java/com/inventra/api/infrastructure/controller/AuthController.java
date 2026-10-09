@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.inventra.api.core.service.auth.AuthUseCase;
 import com.inventra.api.core.service.auth.model.request.LoginRequest;
+import com.inventra.api.core.service.auth.model.request.RefreshTokenRequest;
 import com.inventra.api.core.service.auth.model.request.RegisterRequest;
 import com.inventra.api.core.service.auth.model.response.LoginResponse;
 
@@ -25,6 +26,17 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(useCase.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(useCase.refresh(request));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        useCase.logout(request);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/register")

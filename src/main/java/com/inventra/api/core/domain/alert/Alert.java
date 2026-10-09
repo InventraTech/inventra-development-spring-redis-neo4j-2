@@ -55,6 +55,7 @@ public class Alert {
     private String message;
 
     @Column(name = "is_read", nullable = false)
+    @Builder.Default
     private Boolean read = false;
 
     @CreatedDate

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import com.inventra.api.core.domain.product.ProductSupplierId;
 import com.inventra.api.core.domain.requisition.Requisition;
 import com.inventra.api.core.domain.requisition.RequisitionItem;
 import com.inventra.api.core.domain.requisition.enums.RequisitionStatus;
+import com.inventra.api.core.domain.requisition.enums.RequisitionType;
 import com.inventra.api.core.domain.supplier.Supplier;
 import com.inventra.api.core.domain.user.User;
 import com.inventra.api.infrastructure.exception.BusinessRuleException;
@@ -51,7 +53,11 @@ public class RequisitionService implements RequisitionUseCase {
         accessGuard.assertAccess(request.kitchenId());
         Kitchen kitchen = kitchenRepository.findById(request.kitchenId())
             .orElseThrow(() -> new ResourceNotFoundException("Cozinha não encontrada."));
-        User requester = userRepository.findById(request.requesterId())
+        if (!Boolean.TRUE.equals(kitchen.getActive())) {
+            throw new BusinessRuleException("Cozinha desativada: reative a cozinha para abrir requisições.");
+        }
+        // o solicitante é sempre o usuário logado (não vem do body)
+        User requester = userRepository.findById(accessGuard.currentUser().getId())
             .orElseThrow(() -> new ResourceNotFoundException("Usuário requisitante não encontrado."));
 
         Requisition requisition = Requisition.builder()
@@ -68,9 +74,13 @@ public class RequisitionService implements RequisitionUseCase {
     @Override
     public Requisition addItem(Integer requisitionId, AddRequisitionItemRequest request) {
         Requisition requisition = findEditableRequisition(requisitionId);
+        assertOwnerOrSupervisor(requisition);
 
         Product product = productRepository.findById(request.productId())
             .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado."));
+        if (!product.isActive()) {
+            throw new BusinessRuleException("Produto desativado não pode ser requisitado.");
+        }
 
         Supplier suggestedSupplier = null;
         if (request.suggestedSupplierId() != null) {
@@ -98,6 +108,7 @@ public class RequisitionService implements RequisitionUseCase {
     @Override
     public Requisition removeItem(Integer requisitionId, Integer itemId) {
         Requisition requisition = findEditableRequisition(requisitionId);
+        assertOwnerOrSupervisor(requisition);
 
         RequisitionItem item = itemRepository.findById(itemId)
             .orElseThrow(() -> new ResourceNotFoundException("Item não encontrado."));
@@ -112,6 +123,7 @@ public class RequisitionService implements RequisitionUseCase {
     @Override
     public Requisition submit(Integer requisitionId) {
         Requisition requisition = findEditableRequisition(requisitionId);
+        assertOwnerOrSupervisor(requisition);
 
         if (itemRepository.countByRequisitionId(requisitionId) == 0) {
             throw new BusinessRuleException("Requisição sem itens não pode ser enviada.");
@@ -124,19 +136,27 @@ public class RequisitionService implements RequisitionUseCase {
 
     @Override
     @Transactional
-    public Requisition approve(Integer requisitionId, UUID approverId) {
+    public Requisition approve(Integer requisitionId) {
         Requisition requisition = findEditableRequisition(requisitionId);
         Integer kitchenId = requisition.getKitchen().getId();
-        if (!userRepository.existsById(approverId)) {
-            throw new ResourceNotFoundException("Usuário aprovador não encontrado.");
+        RequisitionType type = requisition.getType();
+        if (itemRepository.countByRequisitionId(requisitionId) == 0) {
+            throw new BusinessRuleException("Requisição sem itens não pode ser aprovada.");
         }
 
-        // sp_approve_requisition muda status/aprovador; o trigger trg_requisition_approval preenche approved_at
-        repository.callApproveRequisition(requisitionId, approverId);
+        // o aprovador é sempre o usuário logado (não vem do body);
+        // sp_approve_requisition muda status/aprovador e o trigger trg_requisition_approval preenche approved_at
+        repository.callApproveRequisition(requisitionId, accessGuard.currentUser().getId());
 
-        List<RequisitionItem> items = itemRepository.findByRequisitionId(requisitionId);
-        for (RequisitionItem item : items) {
-            stockBatchUseCase.consumeForProduct(kitchenId, item.getProduct().getId(), item.getQuantity());
+        // PURCHASE não mexe no estoque: a entrada acontece quando a mercadoria chega (POST /api/stock-batches),
+        // já que o item de requisição não tem lote/validade pra virar um lote.
+        // TRANSFER é a saída da cozinha da requisição (o destino é texto livre em origin, sem cozinha
+        // vinculada); a cozinha que recebe registra a entrada dela pelo POST /api/stock-batches.
+        if (type == RequisitionType.CONSUMPTION || type == RequisitionType.TRANSFER) {
+            List<RequisitionItem> items = itemRepository.findByRequisitionId(requisitionId);
+            for (RequisitionItem item : items) {
+                stockBatchUseCase.consumeForProduct(kitchenId, item.getProduct().getId(), item.getQuantity());
+            }
         }
 
         return reload(requisitionId);
@@ -154,7 +174,12 @@ public class RequisitionService implements RequisitionUseCase {
     @Override
     @Transactional
     public Requisition cancel(Integer requisitionId, String reason) {
-        loadRequisition(requisitionId);
+        Requisition requisition = loadRequisition(requisitionId);
+        assertOwnerOrSupervisor(requisition);
+        // cancelar uma requisição já aprovada (estoque já baixado) é decisão do supervisor
+        if (requisition.getStatus() == RequisitionStatus.APPROVED && !accessGuard.isSupervisor()) {
+            throw new AccessDeniedException("Somente supervisor pode cancelar uma requisição já aprovada.");
+        }
 
         // sp_cancel_requisition aceita UNDER_REVIEW ou APPROVED; não devolve ao estoque o que a aprovação consumiu
         repository.callCancelRequisition(requisitionId, reason);
@@ -169,16 +194,14 @@ public class RequisitionService implements RequisitionUseCase {
 
     @Override
     public List<Requisition> listByStatus(RequisitionStatus status) {
-        return repository.findByStatus(status).stream()
-            .filter(requisition -> accessGuard.hasAccess(requisition.getKitchen().getId()))
-            .toList();
+        Integer kitchenId = accessGuard.currentKitchenId();
+        return kitchenId == null ? List.of() : repository.findByKitchenIdAndStatus(kitchenId, status);
     }
 
     @Override
     public List<Requisition> listByRequester(UUID requesterId) {
-        return repository.findByRequesterId(requesterId).stream()
-            .filter(requisition -> accessGuard.hasAccess(requisition.getKitchen().getId()))
-            .toList();
+        Integer kitchenId = accessGuard.currentKitchenId();
+        return kitchenId == null ? List.of() : repository.findByKitchenIdAndRequesterId(kitchenId, requesterId);
     }
 
     @Override
@@ -207,6 +230,14 @@ public class RequisitionService implements RequisitionUseCase {
     private Requisition reload(Integer requisitionId) {
         return repository.findById(requisitionId)
             .orElseThrow(() -> new ResourceNotFoundException("Requisição não encontrada."));
+    }
+
+    // Comprador só mexe nas próprias requisições; supervisor mexe em todas da cozinha.
+    private void assertOwnerOrSupervisor(Requisition requisition) {
+        boolean owner = requisition.getRequester().getId().equals(accessGuard.currentUser().getId());
+        if (!owner && !accessGuard.isSupervisor()) {
+            throw new AccessDeniedException("Você só pode alterar as próprias requisições.");
+        }
     }
 
     private Requisition findEditableRequisition(Integer requisitionId) {

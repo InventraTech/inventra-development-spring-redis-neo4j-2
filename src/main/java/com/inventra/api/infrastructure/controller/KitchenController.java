@@ -4,13 +4,16 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.kitchen.Kitchen;
 import com.inventra.api.core.service.kitchen.KitchenUseCase;
 import com.inventra.api.core.service.kitchen.model.request.CreateKitchenRequest;
 import com.inventra.api.core.service.kitchen.model.request.UpdateKitchenRequest;
+import com.inventra.api.core.service.kitchen.model.response.KitchenLookupResponse;
 import com.inventra.api.core.service.kitchen.model.response.KitchenResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ public class KitchenController {
 
     private final KitchenUseCase useCase;
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<KitchenResponse> create(@Valid @RequestBody CreateKitchenRequest request) {
         Kitchen created = useCase.create(request);
@@ -35,8 +39,8 @@ public class KitchenController {
     }
 
     @GetMapping("/by-code/{code}")
-    public ResponseEntity<KitchenResponse> findByCode(@PathVariable String code) {
-        return ResponseEntity.ok(KitchenResponse.fromEntity(useCase.findByCode(code)));
+    public ResponseEntity<KitchenLookupResponse> findByCode(@PathVariable String code) {
+        return ResponseEntity.ok(KitchenLookupResponse.fromEntity(useCase.findByCode(code)));
     }
 
     @GetMapping
@@ -47,6 +51,7 @@ public class KitchenController {
         return ResponseEntity.ok(responses);
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}")
     public ResponseEntity<KitchenResponse> update(@PathVariable Integer id,
                                                    @Valid @RequestBody UpdateKitchenRequest request) {
@@ -54,12 +59,14 @@ public class KitchenController {
         return ResponseEntity.ok(KitchenResponse.fromEntity(updated));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/activate")
     public ResponseEntity<Void> activate(@PathVariable Integer id) {
         useCase.activate(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable Integer id) {
         useCase.deactivate(id);

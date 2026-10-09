@@ -9,14 +9,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -34,9 +45,14 @@ public class GlobalExceptionHandler {
         return buildProblem(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ProblemDetail handleTooManyRequests(TooManyRequestsException ex) {
+        return buildProblem(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage());
+    }
+
     @ExceptionHandler(DisabledException.class)
     public ProblemDetail handleDisabled(DisabledException ex) {
-        return buildProblem(HttpStatus.FORBIDDEN, "Forbidden", "Conta desativada. Contate um administrador.");
+        return buildProblem(HttpStatus.FORBIDDEN, "Forbidden", "Conta desativada. Contate o supervisor da sua cozinha.");
     }
 
     @ExceptionHandler(AuthenticationException.class)
@@ -62,6 +78,65 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage());
+    }
+
+    // ===== Erros do próprio Spring MVC: sem estes handlers, o handler genérico os devolveria como 500 =====
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleNotReadable(HttpMessageNotReadableException ex) {
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request", "Corpo da requisição ausente ou com JSON inválido.");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Valor inválido para o parâmetro '" + ex.getName() + "'.");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingParameter(MissingServletRequestParameterException ex) {
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Parâmetro obrigatório ausente: '" + ex.getParameterName() + "'.");
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ProblemDetail handleMissingPart(MissingServletRequestPartException ex) {
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Parte obrigatória ausente: '" + ex.getRequestPartName() + "'.");
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ProblemDetail handlePropertyReference(PropertyReferenceException ex) {
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Campo de ordenação inválido: '" + ex.getPropertyName() + "'.");
+    }
+
+    // Uso inválido da API de dados vindo do cliente, ex.: ordenação (?sort=) por campo que não existe.
+    @ExceptionHandler(InvalidDataAccessApiUsageException.class)
+    public ProblemDetail handleInvalidDataAccessApiUsage(InvalidDataAccessApiUsageException ex) {
+        log.warn("Parâmetros inválidos para a consulta", ex);
+        return buildProblem(HttpStatus.BAD_REQUEST, "Bad Request", "Parâmetros de consulta inválidos.");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ProblemDetail handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return buildProblem(HttpStatus.CONTENT_TOO_LARGE, "Content Too Large", "O arquivo enviado excede o tamanho máximo de 5MB.");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return buildProblem(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed",
+                "Método " + ex.getMethod() + " não é suportado nesse endpoint.");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        return buildProblem(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type", "Content-Type não suportado.");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ProblemDetail handleNoResource(NoResourceFoundException ex) {
+        return buildProblem(HttpStatus.NOT_FOUND, "Not Found", "Recurso não encontrado.");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -104,6 +179,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneric(Exception ex) {
+        // Demais exceções do Spring MVC já sabem o próprio status (4xx): respeita em vez de virar 500.
+        if (ex instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError()) {
+            HttpStatus status = HttpStatus.valueOf(errorResponse.getStatusCode().value());
+            return buildProblem(status, status.getReasonPhrase(), "Requisição inválida.");
+        }
         log.error("Erro não tratado", ex);
         return buildProblem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Erro interno no servidor.");
     }

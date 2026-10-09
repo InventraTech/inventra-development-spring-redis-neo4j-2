@@ -5,11 +5,11 @@ import java.util.UUID;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+// responsibleId é opcional: sem ele, o responsável é o usuário logado.
 public record OpenInventoryRequest(
         @NotNull
         Integer kitchenId,
 
-        @NotNull
         UUID responsibleId,
 
         @Size(max = 255)

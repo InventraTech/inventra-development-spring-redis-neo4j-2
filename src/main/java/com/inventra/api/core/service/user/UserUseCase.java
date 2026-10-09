@@ -12,7 +12,13 @@ public interface UserUseCase {
 
     User create(CreateUserRequest request);
 
+    // auto-cadastro (/api/auth/register): sem usuário logado e sem cozinha
+    User registerSelf(String name, String email, String password, Integer profileId);
+
     User findById(UUID id);
+
+    // usuário do token, recarregado do banco
+    User findCurrent();
 
     User findByEmail(String email);
 

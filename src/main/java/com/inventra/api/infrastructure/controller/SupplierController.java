@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.supplier.Supplier;
@@ -11,6 +12,7 @@ import com.inventra.api.core.service.supplier.SupplierUseCase;
 import com.inventra.api.core.service.supplier.model.request.CreateSupplierRequest;
 import com.inventra.api.core.service.supplier.model.request.UpdateSupplierRequest;
 import com.inventra.api.core.service.supplier.model.response.SupplierResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class SupplierController {
 
     private final SupplierUseCase useCase;
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<SupplierResponse> create(@Valid @RequestBody CreateSupplierRequest request) {
         Supplier created = useCase.create(request);
@@ -42,6 +45,7 @@ public class SupplierController {
         return ResponseEntity.ok(responses);
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}")
     public ResponseEntity<SupplierResponse> update(@PathVariable Integer id,
                                                     @Valid @RequestBody UpdateSupplierRequest request) {
@@ -49,12 +53,14 @@ public class SupplierController {
         return ResponseEntity.ok(SupplierResponse.fromEntity(updated));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/activate")
     public ResponseEntity<Void> activate(@PathVariable Integer id) {
         useCase.activate(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable Integer id) {
         useCase.deactivate(id);

@@ -109,17 +109,17 @@ Resumo:
 | Recurso            | Base path              | Acesso                                                             |
 |:-------------------|:-----------------------|:-------------------------------------------------------------------|
 | Autenticação       | `/api/auth`            | `POST /login` e `POST /register` públicos                          |
-| Usuários           | `/api/users`           | Autenticado                                                        |
-| Perfis             | `/api/profiles`        | Autenticado                                                        |
-| Cozinhas           | `/api/kitchens`        | Autenticado                                                        |
-| Categorias         | `/api/categories`      | Autenticado                                                        |
-| Unidades de medida | `/api/units`           | Autenticado                                                        |
-| Fornecedores       | `/api/suppliers`       | Autenticado                                                        |
-| Produtos           | `/api/products`        | Autenticado — parâmetros e listagens filtrados pela cozinha        |
-| Lotes de estoque   | `/api/stock-batches`   | Autenticado — escopo por cozinha                                   |
-| Inventários        | `/api/inventories`     | Autenticado — escopo por cozinha                                   |
-| Requisições        | `/api/requisitions`    | Autenticado — escopo por cozinha                                   |
-| Alertas            | `/api/alerts`          | Autenticado — escopo por cozinha                                   |
+| Usuários           | `/api/users`           | Supervisor (criar/listar/ativar/desativar); cada um edita o próprio nome e senha |
+| Perfis             | `/api/profiles`        | Leitura: autenticado — escrita: supervisor                         |
+| Cozinhas           | `/api/kitchens`        | Leitura: autenticado — escrita: supervisor; escopo por cozinha     |
+| Categorias         | `/api/categories`      | Leitura: autenticado — escrita: supervisor                         |
+| Unidades de medida | `/api/units`           | Leitura: autenticado — escrita: supervisor                         |
+| Fornecedores       | `/api/suppliers`       | Leitura: autenticado — escrita: supervisor                         |
+| Produtos           | `/api/products`        | Leitura: autenticado — escrita: supervisor; parâmetros filtrados pela cozinha |
+| Lotes de estoque   | `/api/stock-batches`   | Supervisor e estoquista — escopo por cozinha                       |
+| Inventários        | `/api/inventories`     | Supervisor e estoquista — escopo por cozinha                       |
+| Requisições        | `/api/requisitions`    | Supervisor e comprador (aprovar/rejeitar: supervisor) — escopo por cozinha |
+| Alertas            | `/api/alerts`          | Supervisor e estoquista (criar/deletar: supervisor) — escopo por cozinha |
 | Swagger / OpenAPI  | `/swagger-ui/**`, `/v3/api-docs/**` | Público                                               |
 | Health             | `/actuator/health`     | Público                                                            |
 
@@ -131,11 +131,14 @@ Authorization: Bearer <token>
 
 **Regras de autorização:**
 
-- Toda requisição (fora dos endpoints públicos acima) exige JWT válido; token inválido/expirado → **401**. Conta desativada (`active = false`) → **403** no login.
+- Toda requisição (fora dos endpoints públicos acima) exige JWT válido; token inválido/expirado → **401**. Conta desativada (`active = false`) → **403** no login, e os tokens já emitidos param de valer na hora.
+- **Papéis:** só existem `supervisor` (faz tudo), `estoquista` (fluxos de entrada e baixa de estoque) e `comprador` (requisições). Endpoint fora do papel → **403** (`@PreAuthorize` com as expressões de `infrastructure/security/Roles`).
 - **Escopo por cozinha (`KitchenAccessGuard`):** todo usuário só enxerga dados da própria `user.kitchen`. Endpoints que recebem `kitchenId` validam e retornam **403** se divergir; listagens multi-cozinha filtram silenciosamente.
-- Usuários **sem cozinha atribuída** (recém-cadastrados via `/api/auth/register`) só conseguem usar endpoints administrativos sem `kitchenId` (perfis, cozinhas, categorias, unidades, fornecedores, usuários).
-- `POST /api/auth/register` não aceita `ADMIN` como `accessType` — contas admin não são criadas por essa rota.
+- Usuários **sem cozinha atribuída** (recém-cadastrados via `/api/auth/register`) não acessam nada com `kitchenId`. Um supervisor vincula o usuário à cozinha dele, ou o supervisor recém-cadastrado cria a própria cozinha (`POST /api/kitchens`) e já fica vinculado a ela. Ninguém vincula usuário a uma cozinha que não seja a sua.
+- `POST /api/auth/register` aceita só `SUPERVISOR`, `ESTOQUISTA` e `COMPRADOR` como `accessType`.
 - `password_hash` nunca aparece em respostas: o `User` só expõe `id`, `name`, `email`, `kitchen`, `profile`, `active`, `lastLogin`, `createdAt`.
+- Desativar a conta ou trocar a senha invalida na hora os tokens já emitidos (o token carrega o `id` do usuário e uma impressão digital da senha). Login com 5 senhas erradas seguidas (mesmo e-mail + IP) bloqueia por 15 minutos (**429**).
+- Os perfis base `supervisor`, `estoquista` e `comprador` não podem ser renomeados nem excluídos.
 - Erros seguem o padrão **`application/problem+json`** (RFC 7807) — detalhes por status em [`docs/docs.md` §14](docs/docs.md#14-códigos-http-e-erros).
 
 ## Estrutura

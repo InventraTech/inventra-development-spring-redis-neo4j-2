@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.inventra.api.core.domain.category.Category;
@@ -11,6 +12,7 @@ import com.inventra.api.core.service.category.CategoryUseCase;
 import com.inventra.api.core.service.category.model.request.CreateCategoryRequest;
 import com.inventra.api.core.service.category.model.request.UpdateCategoryRequest;
 import com.inventra.api.core.service.category.model.response.CategoryResponse;
+import com.inventra.api.infrastructure.security.Roles;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class CategoryController {
 
     private final CategoryUseCase useCase;
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CreateCategoryRequest request) {
         Category created = useCase.create(request);
@@ -42,6 +45,7 @@ public class CategoryController {
         return ResponseEntity.ok(responses);
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}")
     public ResponseEntity<CategoryResponse> update(@PathVariable Integer id,
                                                     @Valid @RequestBody UpdateCategoryRequest request) {
@@ -49,6 +53,7 @@ public class CategoryController {
         return ResponseEntity.ok(CategoryResponse.fromEntity(updated));
     }
 
+    @PreAuthorize(Roles.SUPERVISOR)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
         useCase.delete(id);

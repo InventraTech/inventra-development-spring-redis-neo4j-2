@@ -49,6 +49,7 @@ public class User {
     private Profile profile;
 
     @Column(name = "active", nullable = false)
+    @Builder.Default
     private Boolean active = true;
 
     @Column(name = "last_login")
