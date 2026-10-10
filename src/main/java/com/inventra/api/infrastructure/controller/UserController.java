@@ -16,16 +16,20 @@ import com.inventra.api.core.service.user.model.request.UpdateUserRequest;
 import com.inventra.api.core.service.user.model.response.UserResponse;
 import com.inventra.api.infrastructure.security.Roles;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
+@Tag(name = "Usuários", description = "Gestão de usuários")
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserUseCase useCase;
 
+    @Operation(summary = "Cria um usuário")
     @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
@@ -34,16 +38,19 @@ public class UserController {
         return ResponseEntity.created(URI.create("/api/users/" + response.id())).body(response);
     }
 
+    @Operation(summary = "Devolve o usuário logado")
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me() {
         return ResponseEntity.ok(UserResponse.fromEntity(useCase.findCurrent()));
     }
 
+    @Operation(summary = "Busca um usuário pelo id")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(UserResponse.fromEntity(useCase.findById(id)));
     }
 
+    @Operation(summary = "Lista todos os usuários")
     @PreAuthorize(Roles.SUPERVISOR)
     @GetMapping
     public ResponseEntity<List<UserResponse>> listAll() {
@@ -53,6 +60,7 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
+    @Operation(summary = "Atualiza um usuário")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> update(@PathVariable UUID id,
                                                 @Valid @RequestBody UpdateUserRequest request) {
@@ -60,6 +68,7 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.fromEntity(updated));
     }
 
+    @Operation(summary = "Altera a senha de um usuário")
     @PatchMapping("/{id}/password")
     public ResponseEntity<Void> changePassword(@PathVariable UUID id,
                                                 @Valid @RequestBody ChangePasswordRequest request) {
@@ -67,6 +76,7 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Ativa um usuário")
     @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/activate")
     public ResponseEntity<Void> activate(@PathVariable UUID id) {
@@ -74,6 +84,7 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Desativa um usuário")
     @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
