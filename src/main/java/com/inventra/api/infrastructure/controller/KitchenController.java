@@ -15,16 +15,20 @@ import com.inventra.api.core.service.kitchen.model.response.KitchenLookupRespons
 import com.inventra.api.core.service.kitchen.model.response.KitchenResponse;
 import com.inventra.api.infrastructure.security.Roles;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
+@Tag(name = "Cozinhas", description = "Cozinhas e unidades operacionais")
 @RequestMapping("/api/kitchens")
 @RequiredArgsConstructor
 public class KitchenController {
 
     private final KitchenUseCase useCase;
 
+    @Operation(summary = "Cria uma cozinha")
     @PreAuthorize(Roles.SUPERVISOR)
     @PostMapping
     public ResponseEntity<KitchenResponse> create(@Valid @RequestBody CreateKitchenRequest request) {
@@ -33,16 +37,19 @@ public class KitchenController {
         return ResponseEntity.created(URI.create("/api/kitchens/" + response.id())).body(response);
     }
 
+    @Operation(summary = "Busca uma cozinha pelo id")
     @GetMapping("/{id}")
     public ResponseEntity<KitchenResponse> findById(@PathVariable Integer id) {
         return ResponseEntity.ok(KitchenResponse.fromEntity(useCase.findById(id)));
     }
 
+    @Operation(summary = "Busca uma cozinha pelo código de convite (resposta resumida)")
     @GetMapping("/by-code/{code}")
     public ResponseEntity<KitchenLookupResponse> findByCode(@PathVariable String code) {
         return ResponseEntity.ok(KitchenLookupResponse.fromEntity(useCase.findByCode(code)));
     }
 
+    @Operation(summary = "Lista as cozinhas ativas")
     @GetMapping
     public ResponseEntity<List<KitchenResponse>> listActive() {
         List<KitchenResponse> responses = useCase.listActive().stream()
@@ -51,6 +58,7 @@ public class KitchenController {
         return ResponseEntity.ok(responses);
     }
 
+    @Operation(summary = "Atualiza uma cozinha")
     @PreAuthorize(Roles.SUPERVISOR)
     @PutMapping("/{id}")
     public ResponseEntity<KitchenResponse> update(@PathVariable Integer id,
@@ -59,6 +67,7 @@ public class KitchenController {
         return ResponseEntity.ok(KitchenResponse.fromEntity(updated));
     }
 
+    @Operation(summary = "Ativa uma cozinha")
     @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/activate")
     public ResponseEntity<Void> activate(@PathVariable Integer id) {
@@ -66,6 +75,7 @@ public class KitchenController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Desativa uma cozinha")
     @PreAuthorize(Roles.SUPERVISOR)
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable Integer id) {
